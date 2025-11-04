@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_localizations/flutter_localizations.dart'; // ✅ 추가
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'home_page.dart';
 import 'sign_up_page.dart';
 

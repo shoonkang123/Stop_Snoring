@@ -20,7 +20,7 @@ class AlarmPage extends StatefulWidget {
 
 class AlarmPageState extends State<AlarmPage> {
   final List<Alarm> alarmList = [];
-  final List<String> weekDays = ['일', '월', '화', '수', '목', '금', '토'];
+  final List<String> weekDays = ['월', '화', '수', '목', '금', '토', '일'];
 
   /// 🕓 알람 추가 시트
   Future<void> _showAddAlarmSheet() async {
@@ -65,52 +65,27 @@ class AlarmPageState extends State<AlarmPage> {
                 Stack(
                   alignment: Alignment.center,
                   children: [
-                    // 중앙 선택선
-                    Positioned(
-                      top: 70,
-                      left: 0,
-                      right: 0,
-                      child: Container(height: 1.2, color: Colors.black12),
-                    ),
-                    Positioned(
-                      bottom: 70,
-                      left: 0,
-                      right: 0,
-                      child: Container(height: 1.2, color: Colors.black12),
-                    ),
-
+                    Positioned(top: 70, left: 0, right: 0, child: Container(height: 1.2, color: Colors.black12)),
+                    Positioned(bottom: 70, left: 0, right: 0, child: Container(height: 1.2, color: Colors.black12)),
                     SizedBox(
                       height: 180,
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          // 🌓 오전/오후
+                          // 오전/오후
                           Expanded(
                             child: CupertinoPicker(
                               itemExtent: 40,
-                              scrollController: FixedExtentScrollController(
-                                  initialItem: isAm ? 0 : 1),
-                              onSelectedItemChanged: (index) {
-                                setStateDialog(() => isAm = index == 0);
-                              },
+                              scrollController: FixedExtentScrollController(initialItem: isAm ? 0 : 1),
+                              onSelectedItemChanged: (index) => setStateDialog(() => isAm = index == 0),
                               children: const [
-                                Center(
-                                  child: Text("오전",
-                                      style: TextStyle(
-                                          fontSize: 22,
-                                          fontWeight: FontWeight.w500)),
-                                ),
-                                Center(
-                                  child: Text("오후",
-                                      style: TextStyle(
-                                          fontSize: 22,
-                                          fontWeight: FontWeight.w500)),
-                                ),
+                                Center(child: Text("오전", style: TextStyle(fontSize: 22, fontWeight: FontWeight.w500))),
+                                Center(child: Text("오후", style: TextStyle(fontSize: 22, fontWeight: FontWeight.w500))),
                               ],
                             ),
                           ),
 
-                          // 🕐 시 다이얼 (무한 루프)
+                          // 시 다이얼
                           Expanded(
                             child: CupertinoPicker.builder(
                               itemExtent: 40,
@@ -118,32 +93,21 @@ class AlarmPageState extends State<AlarmPage> {
                               useMagnifier: true,
                               onSelectedItemChanged: (index) {
                                 hour = (index % 12) + 1;
-
-                                // 무한루프 유지
                                 if (index < 10 || index > 1190) {
-                                  Future.microtask(() {
-                                    hourController.jumpToItem(
-                                        600 + (index % 12));
-                                  });
+                                  Future.microtask(() => hourController.jumpToItem(600 + (index % 12)));
                                 }
                               },
                               childCount: 1200,
                               itemBuilder: (context, i) {
                                 final display = ((i % 12) + 1).toString();
-                                return Center(
-                                  child: Text(display,
-                                      style: const TextStyle(
-                                          fontSize: 26, color: Colors.black)),
-                                );
+                                return Center(child: Text(display, style: const TextStyle(fontSize: 26, color: Colors.black)));
                               },
                             ),
                           ),
 
-                          const Text(":",
-                              style: TextStyle(
-                                  fontSize: 26, fontWeight: FontWeight.bold)),
+                          const Text(":", style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold)),
 
-                          // 🕓 분 다이얼 (무한 루프)
+                          // 분 다이얼
                           Expanded(
                             child: CupertinoPicker.builder(
                               itemExtent: 40,
@@ -151,24 +115,14 @@ class AlarmPageState extends State<AlarmPage> {
                               useMagnifier: true,
                               onSelectedItemChanged: (index) {
                                 minute = index % 60;
-
-                                // 무한루프 유지
                                 if (index < 100 || index > 5900) {
-                                  Future.microtask(() {
-                                    minuteController.jumpToItem(
-                                        3000 + (index % 60));
-                                  });
+                                  Future.microtask(() => minuteController.jumpToItem(3000 + (index % 60)));
                                 }
                               },
                               childCount: 6000,
                               itemBuilder: (context, i) {
-                                final display =
-                                (i % 60).toString().padLeft(2, '0');
-                                return Center(
-                                  child: Text(display,
-                                      style: const TextStyle(
-                                          fontSize: 26, color: Colors.black)),
-                                );
+                                final display = (i % 60).toString().padLeft(2, '0');
+                                return Center(child: Text(display, style: const TextStyle(fontSize: 26, color: Colors.black)));
                               },
                             ),
                           ),
@@ -180,7 +134,7 @@ class AlarmPageState extends State<AlarmPage> {
 
                 const SizedBox(height: 16),
 
-                // 📅 요일 선택
+                // 요일 선택
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: weekDays.map((day) {
@@ -188,32 +142,24 @@ class AlarmPageState extends State<AlarmPage> {
                     return GestureDetector(
                       onTap: () {
                         setStateDialog(() {
-                          isSelected
-                              ? selectedDays.remove(day)
-                              : selectedDays.add(day);
+                          isSelected ? selectedDays.remove(day) : selectedDays.add(day);
                         });
                       },
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 200),
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: isSelected
-                              ? Colors.amber[600]
-                              : Colors.transparent,
+                          color: isSelected ? Colors.amber[600] : Colors.transparent,
                           shape: BoxShape.circle,
                           border: Border.all(
-                            color: isSelected
-                                ? Colors.amber
-                                : Colors.grey.shade400,
+                            color: isSelected ? Colors.amber : Colors.grey.shade400,
                             width: 1.5,
                           ),
                         ),
                         child: Text(
                           day,
                           style: TextStyle(
-                            color: isSelected
-                                ? Colors.white
-                                : Colors.grey.shade600,
+                            color: isSelected ? Colors.white : Colors.grey.shade600,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -230,15 +176,14 @@ class AlarmPageState extends State<AlarmPage> {
                   children: [
                     TextButton(
                       onPressed: () => Navigator.pop(context),
-                      child: const Text("취소",
-                          style: TextStyle(
-                              color: Colors.black87,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16)),
+                      child: const Text("취소", style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold, fontSize: 16)),
                     ),
                     ElevatedButton(
                       onPressed: () {
                         final hour24 = isAm ? hour % 12 : (hour % 12) + 12;
+                        if (selectedDays.isEmpty) {
+                          selectedDays = List.from(weekDays);
+                        }
                         setState(() {
                           alarmList.add(Alarm(
                             time: TimeOfDay(hour: hour24, minute: minute),
@@ -250,14 +195,10 @@ class AlarmPageState extends State<AlarmPage> {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.amber,
                         foregroundColor: Colors.black,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10)),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 30, vertical: 10),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 10),
                       ),
-                      child: const Text("저장",
-                          style: TextStyle(
-                              fontWeight: FontWeight.bold, fontSize: 16)),
+                      child: const Text("저장", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                     ),
                   ],
                 ),
@@ -298,7 +239,6 @@ class AlarmPageState extends State<AlarmPage> {
     return Scaffold(
       backgroundColor: const Color(0xFFFDF6FC),
 
-      // 🌙 상단바 (Moon 아이콘 + 메뉴)
       appBar: PreferredSize(
         preferredSize: const Size.fromHeight(50),
         child: AppBar(
@@ -308,33 +248,19 @@ class AlarmPageState extends State<AlarmPage> {
             padding: const EdgeInsets.only(left: 10),
             child: Image.asset('MoonIcon.png'),
           ),
-          title: const Text(
-            'Alarm',
-            style: TextStyle(
-              color: Colors.black,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
+          title: const Text('Alarm', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
           centerTitle: true,
           actions: [
-            IconButton(
-              icon: const Icon(Icons.menu),
-              onPressed: () {},
-              color: Colors.black,
-            ),
+            IconButton(icon: const Icon(Icons.menu), onPressed: () {}, color: Colors.black),
           ],
         ),
       ),
 
-      // 🧾 알람 목록
       body: Column(
         children: [
           Padding(
             padding: const EdgeInsets.all(16),
-            child: Text(
-              getNextAlarmText() ?? "등록된 알람이 없습니다.",
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-            ),
+            child: Text(getNextAlarmText() ?? "등록된 알람이 없어요.", style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
           ),
           Expanded(
             child: ListView.builder(
@@ -344,38 +270,42 @@ class AlarmPageState extends State<AlarmPage> {
                 final alarm = alarmList[i];
                 final time = alarm.time.format(context);
                 return Card(
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                   elevation: 3,
                   margin: const EdgeInsets.symmetric(vertical: 10),
                   child: ListTile(
-                    leading: const Icon(Icons.access_alarm,
-                        color: Colors.black87, size: 28),
-                    title: Text(time,
-                        style: const TextStyle(
-                            fontSize: 28, fontWeight: FontWeight.bold)),
-                    subtitle: Text(
-                      alarm.days.join(', '),
-                      style: const TextStyle(color: Colors.black54),
+                    leading: const Icon(Icons.access_alarm, color: Colors.black87, size: 28),
+                    title: Text(time, style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+
+                    // ✅ 수정된 요일 표시 UI
+                    subtitle: Row(
+                      children: weekDays.map((day) {
+                        final isSelected = alarm.days.contains(day);
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                          child: Text(
+                            day,
+                            style: TextStyle(
+                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                              color: isSelected ? Colors.black87 : Colors.grey,
+                            ),
+                          ),
+                        );
+                      }).toList(),
                     ),
+
                     trailing: Switch(
                       value: alarm.isEnabled,
-                      onChanged: (v) =>
-                          setState(() => alarm.isEnabled = v),
+                      onChanged: (v) => setState(() => alarm.isEnabled = v),
                       thumbColor: WidgetStateProperty.resolveWith((states) {
-                        if (states.contains(WidgetState.selected)) {
-                          return Colors.amber; // 활성 상태
-                        }
-                        return Colors.grey; // 비활성 상태
+                        if (states.contains(WidgetState.selected)) return Colors.amber;
+                        return Colors.grey;
                       }),
                       trackColor: WidgetStateProperty.resolveWith((states) {
-                        if (states.contains(WidgetState.selected)) {
-                          return Colors.amber.withAlpha(128); // 트랙 색상 (선)
-                        }
+                        if (states.contains(WidgetState.selected)) return Colors.amber.withAlpha(128);
                         return Colors.grey.withAlpha(128);
                       }),
                     ),
-
                   ),
                 );
               },
@@ -384,7 +314,6 @@ class AlarmPageState extends State<AlarmPage> {
         ],
       ),
 
-      // 🌙 하단 네비게이션 바
       bottomNavigationBar: BottomNavigationBar(
         backgroundColor: const Color(0xFFE3E3EA),
         selectedItemColor: Colors.amber[700],
@@ -396,7 +325,6 @@ class AlarmPageState extends State<AlarmPage> {
           BottomNavigationBarItem(icon: Icon(Icons.nights_stay), label: ''),
         ],
         onTap: (index) {
-          if (index == 0) return;
           if (index == 1) {
             Navigator.pushReplacement(
               context,
@@ -406,7 +334,6 @@ class AlarmPageState extends State<AlarmPage> {
         },
       ),
 
-      // ➕ 알람 추가 버튼
       floatingActionButton: FloatingActionButton(
         onPressed: _showAddAlarmSheet,
         backgroundColor: Colors.amber,
