@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'home_page.dart';
+import 'package:flutter/services.dart';
 
 class Customerpage extends StatefulWidget {
   const Customerpage({super.key});
@@ -89,6 +90,19 @@ class _CustomerpageState extends State<Customerpage> {
                         TextField(
                           controller: ageController,
                           keyboardType: TextInputType.number,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                          ],
+                          onChanged: (value) {
+                            final intValue = int.tryParse(value);
+                            if (intValue != null && (intValue < 1 || intValue > 150)) {
+                              // 범위를 벗어나면 입력값 초기화
+                              ageController.clear();
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('나이는 1세 이상 150세 이하만 입력 가능합니다')),
+                              );
+                            }
+                          },
                           decoration: InputDecoration(
                             labelText: '나이',
                             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
