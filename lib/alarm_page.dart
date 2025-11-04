@@ -22,7 +22,9 @@ class AlarmPage extends StatefulWidget {
 class AlarmPageState extends State<AlarmPage> {
   final List<Alarm> alarmList = [];
   final List<String> weekDays = ['월', '화', '수', '목', '금', '토', '일'];
+  bool _isEditing = false; // 편집 모드 여부
 
+  /// 알람 추가 바텀시트 표시
   Future<void> _showAddAlarmSheet() async {
     int hour = 8;
     int minute = 0;
@@ -67,10 +69,9 @@ class AlarmPageState extends State<AlarmPage> {
                     contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   ),
                 ),
-
                 const SizedBox(height: 20),
 
-                // 시/분/오전오후 선택
+                /// 시간 선택 피커 (오전/오후, 시, 분)
                 Stack(
                   alignment: Alignment.center,
                   children: [
@@ -134,10 +135,9 @@ class AlarmPageState extends State<AlarmPage> {
                     ),
                   ],
                 ),
-
                 const SizedBox(height: 16),
 
-                /// 요일 선택
+                /// 요일 선택 버튼들
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: weekDays.map((day) {
@@ -170,10 +170,9 @@ class AlarmPageState extends State<AlarmPage> {
                     );
                   }).toList(),
                 ),
-
                 const SizedBox(height: 20),
 
-                /// 저장 버튼
+                /// 저장/취소 버튼들
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
@@ -214,6 +213,7 @@ class AlarmPageState extends State<AlarmPage> {
     );
   }
 
+  /// 다음 울릴 알람까지 남은 시간 계산
   String? getNextAlarmText() {
     final enabled = alarmList.where((a) => a.isEnabled).toList();
     if (enabled.isEmpty) return null;
@@ -240,100 +240,121 @@ class AlarmPageState extends State<AlarmPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFFDF6FC),
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        title: const Text('Alarm', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
-        centerTitle: true,
-        leading: Padding(padding: const EdgeInsets.only(left: 10), child: Image.asset('MoonIcon.png')),
-        actions: [IconButton(onPressed: () {}, icon: const Icon(Icons.menu), color: Colors.black)],
-      ),
-      body: Column(
+      body: Stack(
         children: [
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Text(getNextAlarmText() ?? "등록된 알람이 없어요.", style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-          ),
-          Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: alarmList.length,
-              itemBuilder: (context, i) {
-                final alarm = alarmList[i];
-                final period = alarm.time.period == DayPeriod.am ? '오전' : '오후';
-                final hour = alarm.time.hourOfPeriod;
-                final minute = alarm.time.minute.toString().padLeft(2, '0');
+          Column(
+            children: [
+              /// 상단 앱바 (달 아이콘 + 제목 + 메뉴 아이콘)
+              AppBar(
+                backgroundColor: Colors.transparent,
+                elevation: 0,
+                title: const Text('Alarm', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+                centerTitle: true,
+                leading: Padding(padding: const EdgeInsets.only(left: 10), child: Image.asset('MoonIcon.png')),
+                actions: [IconButton(onPressed: () {}, icon: const Icon(Icons.menu), color: Colors.black)],
+              ),
 
-                return Card(
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                  elevation: 3,
-                  margin: const EdgeInsets.symmetric(vertical: 10),
-                  child: ListTile(
-                    leading: const Icon(Icons.access_alarm, color: Colors.black87),
+              /// 다음 알람 안내 텍스트
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Text(getNextAlarmText() ?? "등록된 알람이 없어요.", style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+              ),
 
-                    /// 알람 이름 + 시간 표시
-                    title: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (alarm.label.isNotEmpty)
-                          Text(
-                            alarm.label,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: Colors.black,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        RichText(
-                          text: TextSpan(
-                            style: DefaultTextStyle.of(context).style,
+              /// 알람 리스트
+              Expanded(
+                child: ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: alarmList.length,
+                  itemBuilder: (context, i) {
+                    final alarm = alarmList[i];
+                    final period = alarm.time.period == DayPeriod.am ? '오전' : '오후';
+                    final hour = alarm.time.hourOfPeriod;
+                    final minute = alarm.time.minute.toString().padLeft(2, '0');
+
+                    return Dismissible(
+                      key: UniqueKey(),
+                      direction: DismissDirection.endToStart,
+                      onDismissed: (direction) {
+                        setState(() => alarmList.removeAt(i));
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('알람이 삭제되었습니다.')),
+                        );
+                      },
+                      background: Container(
+                        alignment: Alignment.centerRight,
+                        padding: const EdgeInsets.only(right: 20),
+                        color: Colors.redAccent,
+                        child: const Icon(Icons.delete, color: Colors.white, size: 28),
+                      ),
+                      child: Card(
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        elevation: 3,
+                        margin: const EdgeInsets.symmetric(vertical: 10),
+                        child: ListTile(
+                          leading: const Icon(Icons.access_alarm, color: Colors.black87),
+                          title: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              TextSpan(
-                                text: '$period ',
-                                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black87),
-                              ),
-                              TextSpan(
-                                text: '$hour:$minute',
-                                style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.black),
+                              if (alarm.label.isNotEmpty)
+                                Text(alarm.label, style: const TextStyle(fontSize: 12, color: Colors.black, fontWeight: FontWeight.bold)),
+                              RichText(
+                                text: TextSpan(
+                                  style: DefaultTextStyle.of(context).style,
+                                  children: [
+                                    TextSpan(text: '$period ', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black87)),
+                                    TextSpan(text: '$hour:$minute', style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.black)),
+                                  ],
+                                ),
                               ),
                             ],
                           ),
-                        ),
-                      ],
-                    ),
-
-                    /// 요일 표시
-                    subtitle: Row(
-                      children: weekDays.map((day) {
-                        final isSelected = alarm.days.contains(day);
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 4),
-                          child: Text(
-                            day,
-                            style: TextStyle(
-                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                              color: isSelected ? Colors.black87 : Colors.grey,
-                            ),
+                          subtitle: Row(
+                            children: weekDays.map((day) {
+                              final isSelected = alarm.days.contains(day);
+                              return Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 4),
+                                child: Text(
+                                  day,
+                                  style: TextStyle(fontWeight: isSelected ? FontWeight.bold : FontWeight.normal, color: isSelected ? Colors.black87 : Colors.grey),
+                                ),
+                              );
+                            }).toList(),
                           ),
-                        );
-                      }).toList(),
-                    ),
+                          trailing: _isEditing
+                              ? IconButton(
+                            icon: const Icon(Icons.delete, color: Colors.red),
+                            onPressed: () => setState(() => alarmList.removeAt(i)),
+                          )
+                              : Switch(
+                            value: alarm.isEnabled,
+                            onChanged: (v) => setState(() => alarm.isEnabled = v),
+                            thumbColor: WidgetStateProperty.resolveWith((states) =>
+                            states.contains(WidgetState.selected) ? Colors.amber : Colors.grey),
+                            trackColor: WidgetStateProperty.resolveWith((states) =>
+                            states.contains(WidgetState.selected) ? Colors.amber.withAlpha(128) : Colors.grey.withAlpha(128)),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
 
-                    trailing: Switch(
-                      value: alarm.isEnabled,
-                      onChanged: (v) => setState(() => alarm.isEnabled = v),
-                      thumbColor: WidgetStateProperty.resolveWith((states) =>
-                      states.contains(WidgetState.selected) ? Colors.amber : Colors.grey),
-                      trackColor: WidgetStateProperty.resolveWith((states) =>
-                      states.contains(WidgetState.selected) ? Colors.amber.withAlpha(128) : Colors.grey.withAlpha(128)),
-                    ),
-                  ),
-                );
-              },
+          /// 편집 모드 토글 버튼 (상단 메뉴 아이콘 아래 위치)
+          Positioned(
+            top: 80,
+            right: 16,
+            child: IconButton(
+              icon: Icon(_isEditing ? Icons.close : Icons.delete, color: Colors.black),
+              onPressed: () => setState(() => _isEditing = !_isEditing),
             ),
           ),
         ],
       ),
+
+      /// 알람 추가 버튼 (FAB)
       floatingActionButton: FloatingActionButton(
         onPressed: _showAddAlarmSheet,
         backgroundColor: Colors.amber,
@@ -341,6 +362,7 @@ class AlarmPageState extends State<AlarmPage> {
         child: const Icon(Icons.add, color: Colors.black, size: 30),
       ),
 
+      /// 하단 네비게이션 바
       bottomNavigationBar: BottomNavigationBar(
         backgroundColor: Colors.white,
         selectedItemColor: Colors.amber[700],
@@ -348,36 +370,18 @@ class AlarmPageState extends State<AlarmPage> {
         selectedFontSize: 12,
         unselectedFontSize: 12,
         type: BottomNavigationBarType.fixed,
-        currentIndex: 0, // 현재 알람 탭이 선택된 상태
+        currentIndex: 0,
         items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.alarm),
-            label: '알람',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: '홈',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.nights_stay),
-            label: '수면',
-          ),
+          BottomNavigationBarItem(icon: Icon(Icons.alarm), label: '알람'),
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: '홈'),
+          BottomNavigationBarItem(icon: Icon(Icons.nights_stay), label: '수면'),
         ],
         onTap: (index) {
-          if (index == 0) return; // 현재 페이지
           if (index == 1) {
-            // 홈 페이지로 이동
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => const HomePage()),
-            );
-          } else if (index == 2) {
-            // 수면 모드 페이지로 이동
-            // Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const SleepPage()));
+            Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const HomePage()));
           }
         },
       ),
-
     );
   }
 }
