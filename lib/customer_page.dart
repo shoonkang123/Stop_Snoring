@@ -1,20 +1,24 @@
 import 'package:flutter/material.dart';
 import 'home_page.dart';
 
-class Customerpage extends StatelessWidget {
-  // 입력값을 저장할 TextEditingController 선언
+class Customerpage extends StatefulWidget {
+  const Customerpage({super.key});
+
+  @override
+  State<Customerpage> createState() => _CustomerpageState();
+}
+
+class _CustomerpageState extends State<Customerpage> {
   final TextEditingController nameController = TextEditingController();
-  final TextEditingController genderController = TextEditingController();
   final TextEditingController ageController = TextEditingController();
   final TextEditingController irregularController = TextEditingController();
 
-  Customerpage({super.key});
+  String? selectedGender; // 남/여 선택용 변수
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFDF6FC), // 배경색
-
+      backgroundColor: const Color(0xFFFDF6FC),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -22,19 +26,10 @@ class Customerpage extends StatelessWidget {
             child: Column(
               children: [
                 const SizedBox(height: 10),
-
-                // 로고 이미지
-                SizedBox(
-                  height: 70,
-                  child: Image.asset('assets/Title.png'),
-                ),
+                SizedBox(height: 70, child: Image.asset('assets/Title.png')),
                 const SizedBox(height: 30),
-
-                // 카드형 입력 UI
                 Card(
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                   elevation: 8,
                   child: Padding(
                     padding: const EdgeInsets.all(20.0),
@@ -45,54 +40,61 @@ class Customerpage extends StatelessWidget {
                           controller: nameController,
                           decoration: InputDecoration(
                             labelText: 'Name',
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(
-                                color: Colors.amber,
-                                width: 2,
-                              ),
+                              borderSide: const BorderSide(color: Colors.amber, width: 2),
                             ),
                           ),
                         ),
                         const SizedBox(height: 16),
 
-                        // 성별 입력
-                        TextField(
-                          controller: genderController,
+                        // 성별 선택 드롭다운
+                        DropdownButtonFormField<String>(
+                          initialValue: selectedGender,
+                          items: const [
+                            DropdownMenuItem(value: '남', child: Text('남')),
+                            DropdownMenuItem(value: '여', child: Text('여')),
+                          ],
+                          onChanged: (value) {
+                            setState(() {
+                              selectedGender = value;
+                            });
+                          },
                           decoration: InputDecoration(
                             labelText: 'Gender',
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                             border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius: BorderRadius.circular(12), // 기존 TextField와 동일
                             ),
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(
-                                color: Colors.amber,
-                                width: 2,
-                              ),
+                              borderSide: const BorderSide(color: Colors.amber, width: 2),
                             ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(color: Colors.grey),
+                            ),
+                            // ✅ 배경 제거: 아래 두 줄 주석 처리 또는 제거
+                            // filled: true,
+                            // fillColor: Color(0xFFFDF6FC),
                           ),
+                          borderRadius: BorderRadius.circular(12), // 드롭다운 펼침 메뉴도 둥글게
                         ),
+
+
                         const SizedBox(height: 16),
 
                         // 나이 입력
                         TextField(
                           controller: ageController,
-                          keyboardType: TextInputType.number, // 숫자 키보드
+                          keyboardType: TextInputType.number,
                           decoration: InputDecoration(
                             labelText: 'Age',
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(
-                                color: Colors.amber,
-                                width: 2,
-                              ),
+                              borderSide: const BorderSide(color: Colors.amber, width: 2),
                             ),
                           ),
                         ),
@@ -103,15 +105,10 @@ class Customerpage extends StatelessWidget {
                           controller: irregularController,
                           decoration: InputDecoration(
                             labelText: 'Irregular',
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(
-                                color: Colors.amber,
-                                width: 2,
-                              ),
+                              borderSide: const BorderSide(color: Colors.amber, width: 2),
                             ),
                           ),
                         ),
@@ -124,40 +121,36 @@ class Customerpage extends StatelessWidget {
                           child: ElevatedButton(
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.amber,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                             ),
                             onPressed: () {
                               final name = nameController.text.trim();
-                              final gender = genderController.text.trim();
                               final age = ageController.text.trim();
                               final irregular = irregularController.text.trim();
 
-                              if (name.isEmpty || gender.isEmpty || age.isEmpty || irregular.isEmpty) {
+                              if (name.isEmpty || selectedGender == null || age.isEmpty || irregular.isEmpty) {
                                 showDialog(
                                   context: context,
                                   builder: (context) => AlertDialog(
-                                    title: Text('입력 누락'),
-                                    content: Text('모든 정보를 입력해주세요.'),
+                                    title: const Text('입력 누락'),
+                                    content: const Text('모든 정보를 입력해주세요.'),
                                     actions: [
                                       TextButton(
                                         onPressed: () => Navigator.pop(context),
-                                        child: Text('확인'),
+                                        child: const Text('확인'),
                                       ),
                                     ],
                                   ),
                                 );
-                                return; // 입력 누락 시 다음 페이지로 이동하지 않음
+                                return;
                               }
 
-                              // 모든 입력이 있을 경우 HomePage로 이동
+                              // 다음 페이지로 이동
                               Navigator.pushReplacement(
                                 context,
                                 MaterialPageRoute(builder: (context) => const HomePage()),
                               );
                             },
-
                             child: const Text(
                               'Next',
                               style: TextStyle(
