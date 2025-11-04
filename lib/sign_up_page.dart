@@ -174,6 +174,25 @@ class SignUpPage extends StatelessWidget {
                                 return;
                               }
 
+                              // 이메일 형식 검사 추가
+                              if (!email.contains('@')) {
+                                showDialog(
+                                  context: context,
+                                  builder: (context) => AlertDialog(
+                                    title: Text('이메일 형식 오류'),
+                                    content: Text('유효한 이메일 주소를 입력해주세요. "@"가 포함되어야 합니다.'),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () => Navigator.pop(context),
+                                        child: Text('확인'),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                                return;
+                              }
+
+
                               // 모든 조건이 만족되면 다음 페이지로 이동
                               Navigator.push(
                                 context,
