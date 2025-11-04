@@ -39,7 +39,7 @@ class _CustomerpageState extends State<Customerpage> {
                         TextField(
                           controller: nameController,
                           decoration: InputDecoration(
-                            labelText: 'Name',
+                            labelText: '이름',
                             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
@@ -62,7 +62,7 @@ class _CustomerpageState extends State<Customerpage> {
                             });
                           },
                           decoration: InputDecoration(
-                            labelText: 'Gender',
+                            labelText: '성별',
                             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12), // 기존 TextField와 동일
@@ -90,7 +90,7 @@ class _CustomerpageState extends State<Customerpage> {
                           controller: ageController,
                           keyboardType: TextInputType.number,
                           decoration: InputDecoration(
-                            labelText: 'Age',
+                            labelText: '나이',
                             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
@@ -100,18 +100,38 @@ class _CustomerpageState extends State<Customerpage> {
                         ),
                         const SizedBox(height: 16),
 
-                        // 수면 불규칙 여부
-                        TextField(
-                          controller: irregularController,
+                        // 수면 중 깨는 횟수
+                        DropdownButtonFormField<String>(
+                          initialValue: irregularController.text.isNotEmpty ? irregularController.text : null,
+                          items: List.generate(5, (index) {
+                            final value = index.toString();
+                            final label = (index == 4) ? '4회 이상' : value;
+                            return DropdownMenuItem(
+                              value: value,
+                              child: Text(label),
+                            );
+                          }),
+                          onChanged: (value) {
+                            setState(() {
+                              irregularController.text = value!;
+                            });
+                          },
                           decoration: InputDecoration(
-                            labelText: 'Irregular',
+                            labelText: '수면 중 깨는 횟수',
                             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
                               borderSide: const BorderSide(color: Colors.amber, width: 2),
                             ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(color: Colors.grey),
+                            ),
                           ),
+                          borderRadius: BorderRadius.circular(12),
                         ),
+
+
                         const SizedBox(height: 24),
 
                         // Next 버튼
