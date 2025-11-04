@@ -362,8 +362,20 @@ class AlarmPageState extends State<AlarmPage> {
                       value: alarm.isEnabled,
                       onChanged: (v) =>
                           setState(() => alarm.isEnabled = v),
-                      activeColor: Colors.amber,
+                      thumbColor: WidgetStateProperty.resolveWith((states) {
+                        if (states.contains(WidgetState.selected)) {
+                          return Colors.amber; // 활성 상태
+                        }
+                        return Colors.grey; // 비활성 상태
+                      }),
+                      trackColor: WidgetStateProperty.resolveWith((states) {
+                        if (states.contains(WidgetState.selected)) {
+                          return Colors.amber.withAlpha(128); // 트랙 색상 (선)
+                        }
+                        return Colors.grey.withAlpha(128);
+                      }),
                     ),
+
                   ),
                 );
               },
