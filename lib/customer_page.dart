@@ -96,10 +96,19 @@ class _CustomerpageState extends State<Customerpage> {
                           onChanged: (value) {
                             final intValue = int.tryParse(value);
                             if (intValue != null && (intValue < 1 || intValue > 150)) {
-                              // 범위를 벗어나면 입력값 초기화
                               ageController.clear();
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('나이는 1세 이상 150세 이하만 입력 가능합니다')),
+                              showDialog(
+                                context: context,
+                                builder: (context) => AlertDialog(
+                                  title: const Text('유효하지 않은 나이'),
+                                  content: const Text('나이는 1세 이상 150세 이하만 입력 가능해요.'),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(context),
+                                      child: const Text('확인'),
+                                    ),
+                                  ],
+                                ),
                               );
                             }
                           },
@@ -112,6 +121,8 @@ class _CustomerpageState extends State<Customerpage> {
                             ),
                           ),
                         ),
+
+
                         const SizedBox(height: 16),
 
                         // 수면 중 깨는 횟수
