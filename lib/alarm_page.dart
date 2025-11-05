@@ -8,8 +8,15 @@ class Alarm {
   bool isEnabled;
   List<String> days;
   String label;
+  bool vibrate;
 
-  Alarm({required this.time, this.isEnabled = true, required this.days, this.label = ''});
+  Alarm({
+    required this.time,
+    this.isEnabled = true,
+    required this.days,
+    this.label = '',
+    this.vibrate = true,
+  });
 }
 
 class AlarmPage extends StatefulWidget {
@@ -29,6 +36,7 @@ class AlarmPageState extends State<AlarmPage> {
     int hour = 8;
     int minute = 0;
     bool isAm = true;
+    bool vibrate = true;
     List<String> selectedDays = [];
     final TextEditingController labelController = TextEditingController();
 
@@ -137,6 +145,21 @@ class AlarmPageState extends State<AlarmPage> {
                 ),
                 const SizedBox(height: 16),
 
+                /// 진동 스위치
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('진동 사용', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                    Switch(
+                      value: vibrate,
+                      onChanged: (val) => setStateDialog(() => vibrate = val),
+                      activeThumbColor: Colors.amber,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+
+
                 /// 요일 선택 버튼들
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -191,6 +214,7 @@ class AlarmPageState extends State<AlarmPage> {
                             time: TimeOfDay(hour: hour24, minute: minute),
                             days: selectedDays,
                             label: labelController.text.trim(),
+                            vibrate: vibrate,
                           ));
                         });
                         Navigator.pop(context);
