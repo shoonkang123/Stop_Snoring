@@ -32,16 +32,22 @@ class AlarmPageState extends State<AlarmPage> {
   bool _isEditing = false; // 편집 모드 여부
 
   /// 알람 추가 바텀시트 표시
-  Future<void> _showAddAlarmSheet() async {
-    int hour = 8;
-    int minute = 0;
-    bool isAm = true;
-    bool vibrate = true;
-    List<String> selectedDays = [];
-    final TextEditingController labelController = TextEditingController();
+  Future<void> _showAddAlarmSheet({Alarm? existingAlarm, int? index}) async {
+    int hour = existingAlarm?.time.hourOfPeriod ?? 8;
+    int minute = existingAlarm?.time.minute ?? 0;
+    bool isAm = existingAlarm?.time.period == DayPeriod.am;
+    bool vibrate = existingAlarm?.vibrate ?? true;
+    List<String> selectedDays = List.from(existingAlarm?.days ?? []);
+    final TextEditingController labelController = TextEditingController(
+      text: existingAlarm?.label ?? '',
+    );
 
-    final hourController = FixedExtentScrollController(initialItem: 600);
-    final minuteController = FixedExtentScrollController(initialItem: 3000);
+    final hourController = FixedExtentScrollController(
+      initialItem: 600 + ((existingAlarm?.time.hourOfPeriod ?? 8) - 1),
+    );
+    final minuteController = FixedExtentScrollController(
+      initialItem: 3000 + (existingAlarm?.time.minute ?? 0),
+    );
 
     await showModalBottomSheet(
       context: context,
@@ -210,13 +216,20 @@ class AlarmPageState extends State<AlarmPage> {
                           selectedDays = List.from(weekDays);
                         }
                         setState(() {
-                          alarmList.add(Alarm(
+                          final newAlarm = Alarm(
                             time: TimeOfDay(hour: hour24, minute: minute),
                             days: selectedDays,
                             label: labelController.text.trim(),
                             vibrate: vibrate,
-                          ));
+                          );
+
+                          if (index != null) {
+                            alarmList[index] = newAlarm; // 기존 알람 수정
+                          } else {
+                            alarmList.add(newAlarm);     // 새 알람 추가
+                          }
                         });
+
                         Navigator.pop(context);
                       },
                       style: ElevatedButton.styleFrom(
@@ -315,6 +328,7 @@ class AlarmPageState extends State<AlarmPage> {
                         elevation: 3,
                         margin: const EdgeInsets.symmetric(vertical: 10),
                         child: ListTile(
+                          onTap: () => _showAddAlarmSheet(existingAlarm: alarm, index: i),
                           leading: const Icon(Icons.access_alarm, color: Colors.black87),
                           title: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
