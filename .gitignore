@@ -43,3 +43,42 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+
+#------승욱 AI--------
+# --- 가상환경 ---
+venv/
+env/
+.venv/
+alarm_env/
+Lib/
+lib/
+Scripts/
+Include/
+pyvenv.cfg
+#-----python------
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.log
+# --- FastAPI / PyTorch 모델 가중치 ---
+*.pt
+*.pth
+*.ckpt
+weight_pt/
+# --- 데이터 파일 / CSV / 로그 ---
+*.csv
+*.xlsx
+*.json
+*.pickle
+*.pkl
+csv/
+mk_csv/
+# --- IDE 설정 ---
+.idea/
+.vscode/
+*.swp
+# --- 시스템 파일 ---
+.DS_Store
+Thumbs.db
