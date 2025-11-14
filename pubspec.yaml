@@ -28,9 +28,10 @@ environment:
 # the latest version available on pub.dev. To see which dependencies have newer
 # versions available, run `flutter pub outdated`.
 dependencies:
-  vibration: ^1.7.4
+  vibration: ^3.1.4
   flutter:
     sdk: flutter
+  alarm: ^3.0.3
   flutter_localizations:
     sdk: flutter
   flutter_local_notifications: ^16.1.0

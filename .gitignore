@@ -74,7 +74,7 @@ weight_pt/
 *.pickle
 *.pkl
 csv/
-mk_csv/
+
 # --- IDE 설정 ---
 .idea/
 .vscode/
