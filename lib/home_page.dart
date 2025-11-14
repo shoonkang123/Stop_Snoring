@@ -11,7 +11,6 @@ class HomePage extends StatelessWidget {
       title: "Home",
       currentIndex: 1,
 
-      // ⭐ HomePage 본문(body) — CommonLayout이 건드리지 않음
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,

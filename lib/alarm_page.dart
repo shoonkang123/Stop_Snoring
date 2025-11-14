@@ -4,11 +4,11 @@ import 'common_layout.dart';
 
 /// 알람 데이터 모델
 class Alarm {
-  TimeOfDay time;
-  bool isEnabled;
-  List<String> days;
-  String label;
-  bool vibrate;
+  TimeOfDay time; // 시간
+  bool isEnabled; // 알람 활/비성화
+  List<String> days; //요일
+  String label; // 알람 이름
+  bool vibrate; // 진동
 
   Alarm({
     required this.time,
@@ -27,17 +27,18 @@ class AlarmPage extends StatefulWidget {
 }
 
 class AlarmPageState extends State<AlarmPage> {
-  final List<Alarm> alarmList = [];
+  final List<Alarm> alarmList = []; // 설정한 알람
   final List<String> weekDays = ['월', '화', '수', '목', '금', '토', '일'];
 
+  // 여러 알람 쉽게 삭제
   bool _isEditing = false;
   final Set<int> selectedIndexes = {};
 
   /// 알람 추가·수정 바텀시트
   Future<void> _showAddAlarmSheet({Alarm? existingAlarm, int? index}) async {
-    int hour = existingAlarm?.time.hourOfPeriod ?? 8;
+    int hour = existingAlarm?.time.hourOfPeriod ?? 7;
     int minute = existingAlarm?.time.minute ?? 0;
-    bool isAm = existingAlarm?.time.period == DayPeriod.am;
+    bool isAm = (existingAlarm?.time.period ?? DayPeriod.am) == DayPeriod.am;
     bool vibrate = existingAlarm?.vibrate ?? true;
     List<String> selectedDays = List.from(existingAlarm?.days ?? []);
 
@@ -289,6 +290,8 @@ class AlarmPageState extends State<AlarmPage> {
                           ),
                         ),
                         const SizedBox(width: 12),
+
+                        //알람 저장
                         Expanded(
                           child: ElevatedButton(
                             onPressed: () {
@@ -350,15 +353,17 @@ class AlarmPageState extends State<AlarmPage> {
 
   /// 다음 울릴 알람 계산
   String? getNextAlarmText() {
+    // 켜진 알람 찾기
     final enabled =
     alarmList.where((a) => a.isEnabled).toList();
     if (enabled.isEmpty) return null;
 
     final now = TimeOfDay.now();
     final nowTotal = now.hour * 60 + now.minute;
-
+    
     int? minDiff;
 
+    // 알람 분단위로 계산 후 젤 빠른 알람 시간 찾기
     for (final alarm in enabled) {
       final total = alarm.time.hour * 60 + alarm.time.minute;
       int diff = total - nowTotal;
