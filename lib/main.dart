@@ -2,10 +2,80 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'home_page.dart';
 import 'sign_up_page.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:timezone/data/latest.dart' as tz;
+import 'package:timezone/timezone.dart' as tz;
 
-void main() {
+
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await initializeNotifications();
   runApp(const MyApp());
 }
+
+
+Future<void> initializeNotifications() async {
+  final flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
+
+  const android = AndroidInitializationSettings('@mipmap/ic_launcher');
+  const initSettings = InitializationSettings(android: android);
+
+  await flutterLocalNotificationsPlugin.initialize(
+    initSettings,
+    onDidReceiveNotificationResponse: (details) {
+      final context = navigatorKey.currentContext;
+      if (context != null) {
+        showDialog(
+          context: context,
+          builder: (_) => AlertDialog(
+            title: const Text("⏰ 알람"),
+            content: const Text("알람이 울렸습니다!"),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+
+                  // ✅ 스누즈 기능: 5분 뒤 알람 다시 울림
+                  final snoozeTime = DateTime.now().add(const Duration(minutes: 5));
+                  flutterLocalNotificationsPlugin.zonedSchedule(
+                    0,
+                    '스누즈 알람',
+                    '5분 후 다시 울립니다!',
+                    tz.TZDateTime.from(snoozeTime, tz.local),
+                    const NotificationDetails(
+                      android: AndroidNotificationDetails(
+                        'alarm_channel',
+                        '알람',
+                        importance: Importance.max,
+                        priority: Priority.high,
+                      ),
+                    ),
+                    androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+                    uiLocalNotificationDateInterpretation:
+                    UILocalNotificationDateInterpretation.absoluteTime,
+                  );
+                },
+                child: const Text("스누즈"),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text("확인"),
+              ),
+            ],
+          ),
+        );
+      }
+    },
+  );
+
+  tz.initializeTimeZones(); // ✅ timezone 초기화
+}
+
+
+
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -13,6 +83,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: navigatorKey,
       debugShowCheckedModeBanner: false, // DEBUG 리본 제거
 
       // ✅ 한국어 로케일 적용
