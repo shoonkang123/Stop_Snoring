@@ -1,29 +1,14 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-<<<<<<< HEAD
-import 'home_page.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:timezone/timezone.dart' as tz;
-=======
 import 'common_layout.dart';
->>>>>>> 033ac5516257f64cae783a3add4a7014476ed22b
 
 /// 알람 데이터 모델
 class Alarm {
-<<<<<<< HEAD
-  TimeOfDay time;
-  bool isEnabled;
-  List<String> days;
-  String label;
-  bool vibrate;
-  bool snooze;
-=======
   TimeOfDay time; // 시간
   bool isEnabled; // 알람 활/비성화
   List<String> days; //요일
   String label; // 알람 이름
   bool vibrate; // 진동
->>>>>>> 033ac5516257f64cae783a3add4a7014476ed22b
 
   Alarm({
     required this.time,
@@ -31,7 +16,6 @@ class Alarm {
     required this.days,
     this.label = '',
     this.vibrate = true,
-    this.snooze = false,
   });
 }
 
@@ -46,55 +30,18 @@ class AlarmPageState extends State<AlarmPage> {
   final List<Alarm> alarmList = []; // 설정한 알람
   final List<String> weekDays = ['월', '화', '수', '목', '금', '토', '일'];
 
-<<<<<<< HEAD
-  // 알람 예약
-  Future<void> scheduleAlarm(DateTime alarmTime) async {
-    final flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
-
-    await flutterLocalNotificationsPlugin.zonedSchedule(
-      0,
-      '알람',
-      '지금 일어나세요!',
-      tz.TZDateTime.from(alarmTime, tz.local),
-      const NotificationDetails(
-        android: AndroidNotificationDetails(
-          'alarm_channel',
-          '알람',
-          importance: Importance.max,
-          priority: Priority.high,
-        ),
-      ),
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-      uiLocalNotificationDateInterpretation:
-      UILocalNotificationDateInterpretation.absoluteTime,
-    );
-  }
-
-  /// 알람 추가 바텀시트 표시
-=======
   // 여러 알람 쉽게 삭제
   bool _isEditing = false;
   final Set<int> selectedIndexes = {};
 
   /// 알람 추가·수정 바텀시트
->>>>>>> 033ac5516257f64cae783a3add4a7014476ed22b
   Future<void> _showAddAlarmSheet({Alarm? existingAlarm, int? index}) async {
     int hour = existingAlarm?.time.hourOfPeriod ?? 7;
     int minute = existingAlarm?.time.minute ?? 0;
     bool isAm = (existingAlarm?.time.period ?? DayPeriod.am) == DayPeriod.am;
     bool vibrate = existingAlarm?.vibrate ?? true;
-    bool snooze = existingAlarm?.snooze ?? false;
     List<String> selectedDays = List.from(existingAlarm?.days ?? []);
 
-<<<<<<< HEAD
-    final hourController = FixedExtentScrollController(
-    initialItem: 600 + ((existingAlarm?.time.hourOfPeriod ?? 8) - 1),
-    );
-
-    final minuteController = FixedExtentScrollController(
-      initialItem: 3000 + (existingAlarm?.time.minute ?? 0),
-    );
-=======
     final TextEditingController labelController =
     TextEditingController(text: existingAlarm?.label ?? '');
 
@@ -102,7 +49,6 @@ class AlarmPageState extends State<AlarmPage> {
     FixedExtentScrollController(initialItem: 600 + (hour - 1));
     final minuteController =
     FixedExtentScrollController(initialItem: 3000 + minute);
->>>>>>> 033ac5516257f64cae783a3add4a7014476ed22b
 
     await showModalBottomSheet(
       context: context,
@@ -130,87 +76,6 @@ class AlarmPageState extends State<AlarmPage> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-<<<<<<< HEAD
-                    Positioned(top: 70, left: 0, right: 0, child: Container(height: 1.2, color: Colors.black12)),
-                    Positioned(bottom: 70, left: 0, right: 0, child: Container(height: 1.2, color: Colors.black12)),
-                    SizedBox(
-                      height: 180,
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          /// 오전 / 오후 선택
-                          Expanded(
-                            child: CupertinoPicker(
-                              itemExtent: 40,
-                              scrollController: FixedExtentScrollController(initialItem: isAm ? 0 : 1),
-                              onSelectedItemChanged: (index) {
-                                setStateDialog(() => isAm = index == 0);
-                              },
-                              children: const [
-                                Center(child: Text("오전", style: TextStyle(fontSize: 22, fontWeight: FontWeight.w500))),
-                                Center(child: Text("오후", style: TextStyle(fontSize: 22, fontWeight: FontWeight.w500))),
-                              ],
-                            ),
-                          ),
-
-                          /// 시(hour) 선택
-                          Expanded(
-                            child: CupertinoPicker.builder(
-                              itemExtent: 40,
-                              scrollController: hourController,
-                              useMagnifier: true,
-                              childCount: 6000,
-                              onSelectedItemChanged: (index) {
-                                hour = (index % 12) + 1;
-
-                                if (index < 100 || index > 5900) {
-                                  Future.microtask(() => hourController.jumpToItem(3000 + (index % 12)));
-                                }
-                              },
-                              itemBuilder: (context, i) {
-                                final displayHour = ((i % 12) + 1).toString();
-                                return Center(
-                                  child: Text(displayHour, style: const TextStyle(fontSize: 26, color: Colors.black)),
-                                );
-                              },
-                            ),
-                          ),
-
-                          const Text(":", style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold)),
-
-                          /// 분(minute) 선택
-                          Expanded(
-                            child: CupertinoPicker.builder(
-                              itemExtent: 40,
-                              scrollController: minuteController,
-                              useMagnifier: true,
-                              childCount: 6000,
-                              onSelectedItemChanged: (index) {
-                                minute = index % 60;
-
-                                if (index < 100 || index > 5900) {
-                                  Future.microtask(() => minuteController.jumpToItem(3000 + (index % 60)));
-                                }
-                              },
-                              itemBuilder: (context, i) {
-                                final displayMinute = (i % 60).toString().padLeft(2, '0');
-                                return Center(
-                                  child: Text(displayMinute, style: const TextStyle(fontSize: 26, color: Colors.black)),
-                                );
-                              },
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-
-
-
-
-                const SizedBox(height: 16),
-=======
                     const Text(
                       "알람 설정",
                       style:
@@ -227,26 +92,9 @@ class AlarmPageState extends State<AlarmPage> {
                             borderRadius: BorderRadius.circular(12)),
                       ),
                     ),
->>>>>>> 033ac5516257f64cae783a3add4a7014476ed22b
 
                     const SizedBox(height: 20),
 
-<<<<<<< HEAD
-                /// 스누즈 스위치
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text('스누즈 사용', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-                    Switch(
-                      value: snooze,
-                      onChanged: (val) => setStateDialog(() => snooze = val),
-                      activeThumbColor: Colors.amber,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-
-=======
                     /// 시간 Picker
                     Stack(
                       alignment: Alignment.center,
@@ -286,7 +134,6 @@ class AlarmPageState extends State<AlarmPage> {
                                   ],
                                 ),
                               ),
->>>>>>> 033ac5516257f64cae783a3add4a7014476ed22b
 
                               /// Hour
                               Expanded(
@@ -490,67 +337,8 @@ class AlarmPageState extends State<AlarmPage> {
                         ),
                       ],
                     ),
-<<<<<<< HEAD
-                    ElevatedButton(
-                      onPressed: () async {
-                        final hour24 = isAm
-                            ? (hour == 12 ? 0 : hour)
-                            : (hour == 12 ? 12 : hour + 12);
-                        if (selectedDays.isEmpty) {
-                          selectedDays = List.from(weekDays);
-                        }
-
-                        //  알람 시간 계산
-                        final now = DateTime.now();
-                        DateTime alarmDateTime = DateTime(
-                          now.year,
-                          now.month,
-                          now.day,
-                          hour24,
-                          minute,
-                        );
-
-                        //  과거 시간이면 내일로 예약
-                        if (alarmDateTime.isBefore(now)) {
-                          alarmDateTime = alarmDateTime.add(const Duration(days: 1));
-                        }
-
-                        //  알람 리스트에 먼저 업데이트
-                        setState(() {
-                          final newAlarm = Alarm(
-                            time: TimeOfDay(hour: hour24, minute: minute),
-                            days: selectedDays,
-                            label: labelController.text.trim(),
-                            vibrate: vibrate,
-                            snooze: snooze,
-                          );
-
-                          if (index != null) {
-                            alarmList[index] = newAlarm;
-                          } else {
-                            alarmList.add(newAlarm);
-                          }
-                        });
-
-                        //  모달 먼저 닫기 (context 사용은 여기까지만)
-                        if (context.mounted) {
-                          Navigator.pop(context);
-                        }
-
-                        //  알람 예약은 나중에 (BuildContext 사용 X)
-                        await scheduleAlarm(alarmDateTime);
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.amber,
-                        foregroundColor: Colors.black,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                      ),
-                      child: const Text("저장", style: TextStyle(fontWeight: FontWeight.bold)),
-                    )
-=======
 
                     const SizedBox(height: 20),
->>>>>>> 033ac5516257f64cae783a3add4a7014476ed22b
                   ],
                 ),
               ),
