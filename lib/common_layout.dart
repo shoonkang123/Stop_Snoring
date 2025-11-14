@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'home_page.dart';
 import 'alarm_page.dart';
+import 'sleep_page.dart';
 
 class CommonLayout extends StatelessWidget {
   final Widget body;       // 페이지 body
@@ -88,10 +89,17 @@ class CommonLayout extends StatelessWidget {
               context,
               MaterialPageRoute(builder: (_) => const AlarmPage()),
             );
-          } else if (i == 1) {
+          }
+          else if (i == 1) {
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(builder: (_) => const HomePage()),
+            );
+          }
+          else if (i == 2) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => const SleepPage()),
             );
           }
         },
