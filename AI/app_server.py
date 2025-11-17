@@ -5,9 +5,18 @@ import numpy as np
 import pandas as pd
 import joblib
 import torch
-
+import firebase_admin
+from firebase_admin import credentials, firestore
 from AI.model.Personalize_freeze import train_transferModel
 from AI.model.Personalize_freeze import transferModel
+
+# fire base 부분
+# 서비스 키 받아오기
+cred = credentials.Certificate(r"C:\Users\kksy0316\source\repos\Stop_Snoring\firebase\alarmproject-d5329-firebase-adminsdk-fbsvc-7e5c211733.json")
+# firebase 앱 초기화
+firebase_admin.initialize_app(cred)
+# firesotre 클라이언트 생성
+db = firestore.client()
 
 app = FastAPI()
 
@@ -22,7 +31,7 @@ model_lstm.feature_extractor.load_state_dict(ckpt_feature_extractor)
 # 추후 개인 사용자 데이터 30일치 생기면 이 부분 수정 해야 함
 ckpt_personal = torch.load("AI/weight_pt/Pretrain_lstm_snooze.pt", map_location=device)
 model_lstm.load_state_dict(ckpt_personal)
-model_lstm.eval().to(device)
+
 
 
 # 입력 데이터 정의
@@ -49,12 +58,6 @@ class LSTMFeatures(BaseModel):
     Awakenings: int
     Irregular_flag: int
     Alarm_success_rate: float
-    snooze_count: int
-    alarm_strength: int
-
-class PredictRequest(BaseModel):
-    lgb_features: LightGBMFeatures
-    lstm_features: LSTMFeatures
 
 class LSTMFeaturesDF:
     @staticmethod
@@ -72,62 +75,10 @@ class LSTMFeaturesDF:
             "Weekday": data.Weekday,
             "Awakenings": data.Awakenings,
             "Irregular_flag": data.Irregular_flag,
-            "snooze_count": data.snooze_count, # 보정 피처
-            "alarm_strength": data.alarm_strength
+            #"snooze_count": data.snooze_count, # 보정 피처
+            #"alarm_strength": data.alarm_strength
         }])
         return df
-
-# LightGBM 예측
-@app.post("/predict_lightgbm")
-def lightgbm_predict(request: PredictRequest):
-    try:
-        features = np.array([
-            request.lgb_features.Bed_sin,
-            request.lgb_features.Bed_cos,
-            request.lgb_features.Wake_sin,
-            request.lgb_features.Wake_cos,
-            request.lgb_features.Sleep_duration,
-            request.lgb_features.Awakenings,
-            request.lgb_features.Irregular_flag
-        ]).reshape(1, -1)
-        output = model_lightgbm.predict(features)
-        alarm_strength = int(output[0])
-        return {"Alarm_strength": alarm_strength}
-    except Exception as e:
-        return {"error": str(e)}
-
-# LSTM 예측
-@app.post("/predict_lstm")
-def lstm_predict(request: PredictRequest):
-    try:
-        features = np.array([
-            request.lstm_features.Bed_sin,
-            request.lstm_features.Bed_cos,
-            request.lstm_features.Wake_sin,
-            request.lstm_features.Wake_cos,
-            request.lstm_features.Sleep_date_sin,
-            request.lstm_features.Sleep_date_cos,
-            request.lstm_features.Wake_date_sin,
-            request.lstm_features.Wake_date_cos,
-            request.lstm_features.Weekday,
-            request.lstm_features.Irregular_flag,
-            request.lstm_features.Sleep_duration,
-            request.lstm_features.Awakenings
-        ], dtype=np.float32)
-        # LSTM은 [batch, seq_len, feature_dim] 형태
-        input_tensor = torch.tensor(features).unsqueeze(0).to(device)
-        with torch.no_grad():
-            output = model_lstm(input_tensor)
-            output = output.squeeze(0)
-            probs = torch.softmax(output, dim=0)
-            pred_class = torch.argmax(probs).item() + 1
-
-            if request.lstm_features.Alarm_success_rate < 0.5:
-                pred_class = min(pred_class + 1, 4)
-
-        return {"Alarm_strength": pred_class}
-    except Exception as e:
-        return {"error": str(e)}
 
 # LSTM 모델 학습(개인 사용자 30일 데이터)
 @app.post("/train-personal-model")
@@ -135,6 +86,98 @@ def train_personal(data: LSTMFeatures):
     try:
         df = LSTMFeaturesDF.to_dataframe(data)
         train_transferModel(df)
-        return {"success"}
+        return {"message": "Training completed successfully"}
+    except Exception as e:
+        return {"error": str(e)}
+
+# AI 모델 입력 데이터로 firestore에서 값을 불러올 때
+def read_user(user_id: str):
+    doc = db.collection("users").document(user_id).get()
+    return doc.to_dict()
+
+# firestore 데이터를 lightgbm 모델의 입력 값에 맞게 변경
+def dict_to_lightgbm_features(data: dict) -> LightGBMFeatures:
+    return LightGBMFeatures(
+        Bed_sin=float(data["Bed_sin"]),
+        Bed_cos=float(data["Bed_cos"]),
+        Wake_sin=float(data["Wake_sin"]),
+        Wake_cos=float(data["Wake_cos"]),
+        Sleep_duration=float(data["Sleep_duration"]),
+        Awakenings=int(data["Awakenings"]),
+        Irregular_flag=int(data["Irregular_flag"])
+    )
+# firestore 데이터를 lstm 모델의 입력 값에 맞게 변경
+def dict_to_lstm_features(data: dict) -> LSTMFeatures:
+    return LSTMFeatures(
+        Bed_sin=float(data["Bed_sin"]),
+        Bed_cos=float(data["Bed_cos"]),
+        Wake_sin=float(data["Wake_sin"]),
+        Wake_cos=float(data["Wake_cos"]),
+        Sleep_duration=float(data["Sleep_duration"]),
+        Sleep_date_sin=float(data["Sleep_date_sin"]),
+        Sleep_date_cos=float(data["Sleep_date_cos"]),
+        Wake_date_sin=float(data["Wake_date_sin"]),
+        Wake_date_cos=float(data["Wake_date_cos"]),
+        Weekday=int(data["Weekday"]),
+        Awakenings=int(data["Awakenings"]),
+        Irregular_flag=int(data["Irregular_flag"]),
+        Alarm_success_rate=float(data["Alarm_success_rate"])
+    )
+
+# firestore 데이터로 바로 예측하는 함수
+@app.get("/predict_firestore/{user_id}")
+def predict_alarm_firestore(user_id: str):
+    try:
+        data = read_user(user_id)
+        for key, value in data.items():
+            print(f"🔍 {key} => type: {type(value)}, value: {value}")
+
+        lgb_input = dict_to_lightgbm_features(data)
+        lstm_input = dict_to_lstm_features(data)
+        # 1행 7열
+        lgb_features = np.array([
+            lgb_input.Bed_sin,
+            lgb_input.Bed_cos,
+            lgb_input.Wake_sin,
+            lgb_input.Wake_cos,
+            lgb_input.Sleep_duration,
+            lgb_input.Awakenings,
+            lgb_input.Irregular_flag
+        ]).reshape(1, -1)
+
+        probs = model_lightgbm.predict(lgb_features)[0]
+        lgb_pred = int(np.argmax(probs)+1)
+        # 1차원 벡터
+        lstm_features = np.array([
+            lstm_input.Bed_sin,
+            lstm_input.Bed_cos,
+            lstm_input.Wake_sin,
+            lstm_input.Wake_cos,
+            lstm_input.Sleep_date_sin,
+            lstm_input.Sleep_date_cos,
+            lstm_input.Wake_date_sin,
+            lstm_input.Wake_date_cos,
+            lstm_input.Weekday,
+            lstm_input.Sleep_duration,
+            lstm_input.Awakenings,
+            lstm_input.Irregular_flag
+        ], dtype=np.float32).reshape(1, -1)
+
+        input_tensor = torch.tensor(lstm_features).unsqueeze(0).to(device)
+        print(f"LSTM input shape: {input_tensor.shape}")
+        with torch.no_grad():
+            model_lstm.eval().to(device)
+            output = model_lstm(input_tensor)
+            output = output.squeeze(0)
+            probs = torch.softmax(output, dim=1)
+            lstm_pred = torch.argmax(probs, dim=1).item() + 1
+            # 평균 알람 성공률 피처를 어떻게 가져올 지 생각해야 햠
+            if lstm_input.Alarm_success_rate < 0.5:
+                pred_class = min(lstm_pred + 1, 4)
+        return {
+            "LightGBM_strength": lgb_pred,
+            "LSTM_strength": lstm_pred,
+            "raw_firestore_data": data
+        }
     except Exception as e:
         return {"error": str(e)}
