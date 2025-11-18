@@ -2,16 +2,13 @@ import pandas as pd
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from .Pretrain import FeatureExtractor
+from AI.model.Pretrain import FeatureExtractor
+from collections import Counter
 
 class transferModel(nn.Module):
-    def __init__(self, transfer_input_size=12, pretrain_input_size = 8,
+    def __init__(self, transfer_input_size=12, pretrain_input_size = 12,
                  embedding_size=32, hidden_size=64, num_classes=4):
         super().__init__()
-        self.adapter = nn.Sequential(
-            nn.Linear(transfer_input_size, pretrain_input_size),
-            nn.ReLU()
-        )
         self.feature_extractor = FeatureExtractor(pretrain_input_size, embedding_size)
         self.lstm = nn.LSTM(embedding_size, hidden_size, batch_first=True)
         self.fc_out = nn.Linear(hidden_size, num_classes)
@@ -19,11 +16,11 @@ class transferModel(nn.Module):
     def forward(self, x_seq):
         batch, seq_len, _ = x_seq.shape
         x_seq = x_seq.reshape(batch * seq_len, -1)
-        x = self.adapter(x_seq)
-        z = self.feature_extractor(x)
+        z = self.feature_extractor(x_seq)
         z = z.view(batch, seq_len, -1)
         lstm_out, _ = self.lstm(z)
         out = self.fc_out(lstm_out)
+        #학습 시 : 1,30,4, 개인 데이터 : 1,1,4
         return out
 
 def train_transferModel(df):
@@ -40,30 +37,51 @@ def train_transferModel(df):
     snooze = torch.tensor(df["snooze_count"].values, dtype=torch.float32).to(device)
 
     model = transferModel(transfer_input_size=12).to(device)
-    pretrain_dict = torch.load("models/feature_extractor_real_pretrained_batchnorm.pt")
-    model.feature_extractor.load_state_dict(pretrain_dict)
+    ckpt = torch.load("AI/weight_pt/pretrained_model_full.pt", map_location=device)
+    model.load_state_dict(ckpt)
     # 🔹 FeatureExtractor 고정 (Freeze)
     for param in model.feature_extractor.parameters():
         param.requires_grad = False
+    for param in model.lstm.parameters():
+        param.requires_grad = True
+    for param in model.fc_out.parameters():
+        param.requires_grad = True
 
-    criterion = nn.CrossEntropyLoss()  # 다중 클래스 분류용 손실함수
-    optimizer = torch.optim.Adam(
-        filter(lambda p: p.requires_grad, model.parameters()),
-        lr=lr
-    )
+    class_counts = Counter(df["alarm_strength"].values - 1)
+    print("클래스 카운트:", class_counts)
+    total = sum(class_counts.values())
+    ratios = {c: count / total for c, count in class_counts.items()}
+    ratio_threshold = 0.05
+
+    mask = df["alarm_strength"].apply(lambda c: ratios[c-1] >= ratio_threshold).values
+    mask = torch.tensor(mask, dtype=torch.bool).to(device)
+
+    class_weights = []
+    for c in range(4):
+        r = ratios.get(c, 0)
+        if ratios.get(c, 0) < ratio_threshold or class_counts.get(c, 0) == 0:
+            class_weights.append(0.5)  # fine-tuning 영향 제거
+        else:
+            class_weights.append(total / class_counts[c])
+
+    class_weights = torch.tensor(class_weights, dtype=torch.float32).to(device)
+
+    criterion = nn.CrossEntropyLoss(weight=class_weights, reduction='none')
+    optimizer = torch.optim.Adam([
+        {"params": model.lstm.parameters(), "lr": 1e-4},  # LSTM 아주 약하게
+        {"params": model.fc_out.parameters(), "lr": 1e-3},
+    ])
 
     for epoch in range(epochs):
         model.train()
         optimizer.zero_grad()
-        print("Y_train",Y_train.shape)
         outputs = model(X_train)
-        print("outputs",outputs.shape)
         outputs = outputs.squeeze(0)
         loss = criterion(outputs, Y_train)
+        loss = loss[mask]
 
-        #알람 성공을 실패 했을 때 가중치를 더 줌
-        alpha = 0.4
-        weights = 1.0 + alpha * (abs(snooze - 1.5)) - 0.2
+        weights = 1.0 + 0.05 * (abs(snooze - 1.5)) - 0.2
+        weights = weights[mask]
         weighted_loss = (loss * weights).mean()
 
         weighted_loss.backward()
@@ -71,21 +89,22 @@ def train_transferModel(df):
 
         if (epoch + 1) % 5 == 0:
             preds = torch.argmax(outputs, dim=1)
-            acc = (preds == Y_train).float().mean()
+            acc = (preds[mask] == Y_train[mask]).float().mean()
             print(f"Epoch [{epoch + 1}/{epochs}] | Loss: {weighted_loss.item():.4f} | Acc: {acc.item():.4f}")
-    # 추후 저장 경로를 수정해줘야 함
-    torch.save(model.state_dict(), "models/Pretrain_lstm_snooze_User.pt")
+
+    torch.save(model.state_dict(), "AI/weight_pt/personalized_model.pt")
+    print("✅ 전이학습 완료 및 모델 저장됨!")
 
 #예측 + 보정 단계
 def predict_with_correction(one_day_data, recent_success_mean):
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     model = transferModel().to(device)
-    pretrain_dict = torch.load("models/feature_extractor_real_pretrained_batchnorm.pt")
-    model.feature_extractor.load_state_dict(pretrain_dict)
-    model.load_state_dict(torch.load("models/Pretrain_lstm_snooze_Irregular.pt"))
+    ckpt = torch.load("AI/weight_pt/pretrained_model_full.pt", map_location=device)
+    model.load_state_dict(ckpt)
+    model.load_state_dict(torch.load("AI/weight_pt/personalized_model.pt"))
     model.eval()
 
-    x = torch.tensor(one_day_data, dtype=torch.float32).unsqueeze(0).to(device)
+    x = one_day_data.unsqueeze(0).to(device)
 
     with torch.no_grad():
         output = model(x)
@@ -101,9 +120,10 @@ def predict_with_correction(one_day_data, recent_success_mean):
     return pred_class
 
 if __name__ == "__main__":
-    day_30_df = pd.read_csv("csv/Irregular_personal_30day.csv")
-    # train_transferModel(day_30_df)
-    day_1_df = pd.read_csv("csv/Irregular_personal_oneday.csv")
+    day_30_df = pd.read_csv("AI/csv/personal_30day.csv")
+    train_transferModel(day_30_df)
+    day_1_df = pd.read_csv("AI/csv/personal_oneday.csv")
     test_data = torch.tensor(day_1_df.values, dtype=torch.float32)
     print("test_data", test_data.shape)
     predict_with_correction(test_data, 0.52)
+

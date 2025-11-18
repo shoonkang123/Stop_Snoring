@@ -25,11 +25,8 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 # ligthGBM모델 가중치 로드
 model_lightgbm = lgb.Booster(model_file="AI/weight_pt/lightGBM_real_alarm_model.txt")
 model_lstm = transferModel()
-# 사전 학습 가중치 로드
-ckpt_feature_extractor = torch.load("AI/weight_pt/feature_extractor_real_pretrained_batchnorm.pt", map_location=device)
-model_lstm.feature_extractor.load_state_dict(ckpt_feature_extractor)
 # 추후 개인 사용자 데이터 30일치 생기면 이 부분 수정 해야 함
-ckpt_personal = torch.load("AI/weight_pt/Pretrain_lstm_snooze.pt", map_location=device)
+ckpt_personal = torch.load(r"C:\Users\kksy0316\source\repos\Alarm_project\models\personalized_model.pt", map_location=device)
 model_lstm.load_state_dict(ckpt_personal)
 
 
@@ -153,14 +150,14 @@ def predict_alarm_firestore(user_id: str):
             lstm_input.Bed_cos,
             lstm_input.Wake_sin,
             lstm_input.Wake_cos,
+            lstm_input.Weekday,
+            lstm_input.Sleep_duration,
+            lstm_input.Irregular_flag,
+            lstm_input.Awakenings,
             lstm_input.Sleep_date_sin,
             lstm_input.Sleep_date_cos,
             lstm_input.Wake_date_sin,
-            lstm_input.Wake_date_cos,
-            lstm_input.Weekday,
-            lstm_input.Sleep_duration,
-            lstm_input.Awakenings,
-            lstm_input.Irregular_flag
+            lstm_input.Wake_date_cos
         ], dtype=np.float32).reshape(1, -1)
 
         input_tensor = torch.tensor(lstm_features).unsqueeze(0).to(device)
@@ -174,10 +171,15 @@ def predict_alarm_firestore(user_id: str):
             # 평균 알람 성공률 피처를 어떻게 가져올 지 생각해야 햠
             if lstm_input.Alarm_success_rate < 0.5:
                 pred_class = min(lstm_pred + 1, 4)
-        return {
+        result = {
             "LightGBM_strength": lgb_pred,
-            "LSTM_strength": lstm_pred,
-            "raw_firestore_data": data
+            "LSTM_strength": lstm_pred
         }
+
+        # Firestore에 저장
+        db.collection("users").document(user_id).collection("predictions").add(result)
+
+        # 앱에 반환
+        return result
     except Exception as e:
         return {"error": str(e)}
