@@ -12,7 +12,7 @@ from AI.model.Personalize_freeze import transferModel
 
 # fire base 부분
 # 서비스 키 받아오기
-cred = credentials.Certificate(r"C:\Users\kksy0316\source\repos\Stop_Snoring\firebase\alarmproject-d5329-firebase-adminsdk-fbsvc-7e5c211733.json")
+cred = credentials.Certificate(r"C:\Users\didck\source\repos\alarm_project\Stop_Snoring\firebase\alarmproject-d5329-firebase-adminsdk-fbsvc-7e5c211733.json")
 # firebase 앱 초기화
 firebase_admin.initialize_app(cred)
 # firesotre 클라이언트 생성
@@ -26,7 +26,7 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 model_lightgbm = lgb.Booster(model_file="AI/weight_pt/lightGBM_real_alarm_model.txt")
 model_lstm = transferModel()
 # 추후 개인 사용자 데이터 30일치 생기면 이 부분 수정 해야 함
-ckpt_personal = torch.load(r"C:\Users\kksy0316\source\repos\Alarm_project\models\personalized_model.pt", map_location=device)
+ckpt_personal = torch.load("AI/weight_pt/personalized_model.pt", map_location=device)
 model_lstm.load_state_dict(ckpt_personal)
 
 
