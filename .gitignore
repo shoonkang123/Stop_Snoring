@@ -51,8 +51,6 @@ venv/
 env/
 .venv/
 alarm_env/
-Lib/
-lib/
 Scripts/
 Include/
 pyvenv.cfg

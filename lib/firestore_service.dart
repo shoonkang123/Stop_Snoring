@@ -1,0 +1,117 @@
+import 'package:cloud_firestore/cloud_firestore.dart'; // ✅ Firestore 관련 패키지
+import 'package:firebase_auth/firebase_auth.dart'; // ✅ Firebase Auth 관련 패키지
+
+class FirestoreService {
+  // 🔹 Firebase 인스턴스 초기화, Firestore에 수면 기록(start/end)을 관리하는 역할
+  final FirebaseAuth _auth = FirebaseAuth.instance; // [Auth] 사용자 인증용
+  final FirebaseFirestore _db = FirebaseFirestore.instance; // [DB] Firestore 접근용
+
+  // 사용자 기본 정보 저장
+  Future<void> saveUserInfo({
+    required String uid,
+    required int Awakenings,
+    required int Irregular_flag,
+  }) async {
+    await _db
+        .collection('users_kim')
+        .doc(uid)
+        .collection('user_info')
+        .doc('basic')
+        .set({
+      'user_id': uid,
+      'Awakenings': Awakenings,
+      'Irregular_flag': Irregularflag
+    }, SetOptions(merge: true));
+  }
+
+  // ✅ 취침 시작 기록 함수
+  Future<void> startSleep({
+    required String uid,
+    required Map<String, dynamic> sleepData,
+  }) async {
+  // 오늘 날짜 기준 문서 키 생성 → "2025-11-19"
+    final dateKey = DateTime.now().toIso8601String().substring(0, 10);
+
+    await _db
+      .collection('users')        // users_kim이 아니라 실제 협업용 users
+      .doc(uid)
+      .collection('sleep_data')
+      .doc(dateKey)
+      .set({
+        ...sleepData,             // 여기서 입력된 sleepData를 그대로 저장
+        'start_time': DateTime.now(),
+        'created_at': FieldValue.serverTimestamp(),
+      },
+      SetOptions(merge: true));   // 기존 필드 있으면 유지 + 새로운 데이터만 병합
+  }
+  //알람 저장
+  Future<String> saveAlarm(String uid, Map<String, dynamic> alarmData) async {
+    final ref = _db.collection("users_kim").doc(uid).collection("alarms").doc();
+    await ref.set(alarmData);
+    return ref.id;
+  }
+
+  //알람 불러오기
+  Future<List<Map<String, dynamic>>> loadAlarms(String uid) async {
+    final snap = await _db.collection("users_kim").doc(uid).collection("alarms").get();
+
+    return snap.docs.map((doc) {
+        final data = doc.data();
+        data["id"] = doc.id;
+        return data;
+    }).toList();
+  }
+  // 알람 수정
+  Future<void> updateAlarm(String uid, String alarmId, Map<String, dynamic> alarmData) async {
+    await _db
+        .collection("users_kim")
+        .doc(uid)
+        .collection("alarms")
+        .doc(alarmId)
+        .update(alarmData);
+  }
+
+  // 알람 삭제
+  Future<void> deleteAlarm(String uid, String alarmId) async {
+    await _db.collection("users_kim").doc(uid).collection("alarms").doc(alarmId).delete();
+  }
+
+  // 🔹 Firebase Auth + Firestore 회원가입 함수
+  Future<String?> registerUser({
+    required String email,
+    required String password,
+    required String name,
+  }) async {
+    try {
+      // ✅ [1️⃣ Firebase Authentication - 사용자 등록]
+      // 이메일과 비밀번호로 Firebase Auth에 계정 생성
+      final credential = await _auth.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+      final uid = email;
+
+      // Firestore 'users_kim/{uid}/user_info/basic'
+      await _db
+          .collection('users_kim')
+          .doc(uid)
+          .collection('user_info')
+          .doc('basic')
+          .set({
+        'name': name,
+        'email': email,
+        'Awakenings': 0,
+        'Irregular_flag': 0,
+        'created_at': FieldValue.serverTimestamp(),
+      });
+
+      return null; // null이면 성공 (에러 없음)
+    } on FirebaseAuthException catch (e) {
+      // ❌ [Auth 에러 발생] (예: 이메일 중복, 비밀번호 짧음 등)
+      return e.message;
+    } catch (e) {
+      // ❌ [Firestore 또는 기타 에러]
+      return e.toString(); //
+    }
+  }
+}
