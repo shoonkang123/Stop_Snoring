@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'common_layout.dart';
-import 'alarm_page.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -29,10 +28,7 @@ class HomePage extends StatelessWidget {
             /// Start 버튼
             ElevatedButton(
               onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const AlarmPage()),
-                );
+
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.amber[400],
