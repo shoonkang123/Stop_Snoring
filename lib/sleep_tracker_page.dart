@@ -362,7 +362,7 @@ class _SleepTrackerPageState extends State<SleepTrackerPage> {
                             const FittedBox(
                               fit: BoxFit.scaleDown,
                               child: Text(
-                                "Quality",
+                                "달성률",
                                 style: TextStyle(fontSize: 16.0, fontWeight: FontWeight.bold),
                               ),
                             ),
