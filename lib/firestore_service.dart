@@ -46,14 +46,22 @@ class FirestoreService {
   }
   //알람 저장
   Future<String> saveAlarm(String uid, Map<String, dynamic> alarmData) async {
-    final ref = _db.collection("users_kim").doc(uid).collection("alarms").doc();
+    final ref = _db
+        .collection("users_kim")
+        .doc(uid)
+        .collection("users_info")
+        .collection("alarms").doc();
     await ref.set(alarmData);
     return ref.id;
   }
 
   //알람 불러오기
   Future<List<Map<String, dynamic>>> loadAlarms(String uid) async {
-    final snap = await _db.collection("users_kim").doc(uid).collection("alarms").get();
+    final snap = await _db
+        .collection("users_kim")
+        .doc(uid)
+        .collection("users_info")
+        .collection("alarms").get();
 
     return snap.docs.map((doc) {
         final data = doc.data();
@@ -66,6 +74,7 @@ class FirestoreService {
     await _db
         .collection("users_kim")
         .doc(uid)
+        .collection("users_info")
         .collection("alarms")
         .doc(alarmId)
         .update(alarmData);
@@ -73,9 +82,28 @@ class FirestoreService {
 
   // 알람 삭제
   Future<void> deleteAlarm(String uid, String alarmId) async {
-    await _db.collection("users_kim").doc(uid).collection("alarms").doc(alarmId).delete();
+    await _db.collection("users_kim")
+        .doc(uid)
+        .collection("users_info")
+        .collection("alarms")
+        .doc(alarmId).delete();
   }
-
+  //즉시 갱신
+  Stream<List<Map<String, dynamic>>> streamAlarms(String uid) {
+    return _db
+      .collection("users_kim")
+      .doc(uid)
+      .collection("users_info")
+      .collection("alarms")
+      .snapshots()
+      .map((snap) =>
+          snap.docs.map((doc) {
+            final data = doc.data();
+            data["id"] = doc.id;
+            return data;
+          }).toList()
+      );
+  }
   // 🔹 Firebase Auth + Firestore 회원가입 함수
   Future<String?> registerUser({
     required String email,
