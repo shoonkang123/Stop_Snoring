@@ -15,12 +15,12 @@ class FirestoreService {
     await _db
         .collection('users_kim')
         .doc(uid)
-        .collection('user_info')
+        .collection('users_info')
         .doc('basic')
         .set({
       'user_id': uid,
       'Awakenings': Awakenings,
-      'Irregular_flag': Irregularflag
+      'Irregular_flag': Irregular_flag
     }, SetOptions(merge: true));
   }
 
@@ -33,9 +33,9 @@ class FirestoreService {
     final dateKey = DateTime.now().toIso8601String().substring(0, 10);
 
     await _db
-      .collection('users')        // users_kim이 아니라 실제 협업용 users
+      .collection('users_kim')        // users_kim이 아니라 실제 협업용 users
       .doc(uid)
-      .collection('sleep_data')
+      .collection('Sleep_data')
       .doc(dateKey)
       .set({
         ...sleepData,             // 여기서 입력된 sleepData를 그대로 저장
@@ -50,7 +50,9 @@ class FirestoreService {
         .collection("users_kim")
         .doc(uid)
         .collection("users_info")
-        .collection("alarms").doc();
+        .doc("alarms")
+        .collection("alarms")
+        .doc();
     await ref.set(alarmData);
     return ref.id;
   }
@@ -61,7 +63,9 @@ class FirestoreService {
         .collection("users_kim")
         .doc(uid)
         .collection("users_info")
-        .collection("alarms").get();
+        .doc("alarms")
+        .collection("alarms")
+        .get();
 
     return snap.docs.map((doc) {
         final data = doc.data();
@@ -75,6 +79,7 @@ class FirestoreService {
         .collection("users_kim")
         .doc(uid)
         .collection("users_info")
+        .doc("alarms")
         .collection("alarms")
         .doc(alarmId)
         .update(alarmData);
@@ -85,6 +90,7 @@ class FirestoreService {
     await _db.collection("users_kim")
         .doc(uid)
         .collection("users_info")
+        .doc("alarms")
         .collection("alarms")
         .doc(alarmId).delete();
   }
@@ -94,6 +100,7 @@ class FirestoreService {
       .collection("users_kim")
       .doc(uid)
       .collection("users_info")
+      .doc("alarms")
       .collection("alarms")
       .snapshots()
       .map((snap) =>
@@ -117,13 +124,13 @@ class FirestoreService {
         email: email,
         password: password,
       );
-      final uid = email;
+      final uid = credential.user!.uid;
 
       // Firestore 'users_kim/{uid}/user_info/basic'
       await _db
           .collection('users_kim')
           .doc(uid)
-          .collection('user_info')
+          .collection('users_info')
           .doc('basic')
           .set({
         'name': name,

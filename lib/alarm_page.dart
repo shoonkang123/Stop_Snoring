@@ -1,7 +1,8 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'common_layout.dart';
-import 'package:Stop_Snoring/lib/firestore_service.dart';
+import 'firestore_service.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 /// 알람 데이터 모델
 class Alarm {
@@ -370,7 +371,7 @@ class AlarmPageState extends State<AlarmPage> {
                                 ),
                             ),
                         ],
-                    )
+                    ),
                     const SizedBox(height: 20),
                   ],
                 ),
@@ -571,7 +572,7 @@ class AlarmPageState extends State<AlarmPage> {
                             //로컬 UI 업데이트
                             setState(() => alarm.isEnabled = v);
                             // firestore 업데이트
-                            final FirebaseAuth.instance.currentUser!.uid;
+                            final uid = FirebaseAuth.instance.currentUser!.uid;
                             await FirestoreService().updateAlarm(
                                 uid,
                                 alarm.id!,            // Firestore 문서 ID
