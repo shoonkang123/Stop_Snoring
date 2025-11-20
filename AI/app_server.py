@@ -12,7 +12,7 @@ from AI.model.Personalize_freeze import transferModel
 
 # fire base 부분
 # 서비스 키 받아오기
-cred = credentials.Certificate(r"C:\Users\didck\source\repos\alarm_project\Stop_Snoring\firebase\alarmproject-d5329-firebase-adminsdk-fbsvc-7e5c211733.json")
+cred = credentials.Certificate(r"C:\Users\ksh\Desktop\Stop_Snoring-master\firebase\alarmproject-d5329-firebase-adminsdk-fbsvc-7e5c211733.json")
 # firebase 앱 초기화
 firebase_admin.initialize_app(cred)
 # firesotre 클라이언트 생성

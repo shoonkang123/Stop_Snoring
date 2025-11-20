@@ -34,8 +34,11 @@ dependencies:
   alarm: ^3.0.3
   flutter_localizations:
     sdk: flutter
-  flutter_local_notifications: ^16.1.0
-  timezone: ^0.9.2
+  flutter_local_notifications:
+    git:
+      url: https://github.com/MaikuB/flutter_local_notifications.git
+      path: flutter_local_notifications
+  timezone: ^0.10.1
     
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
