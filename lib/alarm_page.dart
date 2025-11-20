@@ -44,8 +44,9 @@ class AlarmPageState extends State<AlarmPage> {
   final Set<int> selectedIndexes = {};
 
   Future<void> _loadAlarmsFromFirestore() async {
-    final uid = FirebaseAuth.instance.currentUser!.uid; // ← 로그인한 사용자 UID로 실제 변경
-    final dataList = await FirestoreService().loadAlarms(uid);
+    final user = FirebaseAuth.instance.currentUser!;
+    final String userId = user.displayName!;
+    final dataList = await FirestoreService().loadAlarms(userId);
 
     // Firestore에서 받은 데이터를 UI용 모델로 변환해서 alarmList에 넣기
     setState(() {
@@ -329,30 +330,31 @@ class AlarmPageState extends State<AlarmPage> {
                             Expanded(
                                 child: ElevatedButton(
                                     onPressed: () async {
-                                        final uid = FirebaseAuth.instance.currentUser!.uid;
-                                        final hour24 = isAm ? hour % 12 : (hour % 12) + 12;
+                                      final user = FirebaseAuth.instance.currentUser!;
+                                      final String userId = user.displayName!;
+                                      final hour24 = isAm ? hour % 12 : (hour % 12) + 12;
 
-                                        if (selectedDays.isEmpty) {
-                                            selectedDays = List.from(weekDays);
-                                        }
+                                      if (selectedDays.isEmpty) {
+                                        selectedDays = List.from(weekDays);
+                                      }
 
-                                        final alarmData = {
-                                            "hour": hour24,
-                                            "minute": minute,
-                                            "days": selectedDays,
-                                            "label": labelController.text.trim(),
-                                            "vibrate": vibrate,
-                                            "isEnabled": existingAlarm?.isEnabled ?? true,
-                                        };
+                                      final alarmData = {
+                                        "hour": hour24,
+                                        "minute": minute,
+                                        "days": selectedDays,
+                                        "label": labelController.text.trim(),
+                                        "vibrate": vibrate,
+                                        "isEnabled": existingAlarm?.isEnabled ?? true,
+                                      };
 
-                                        if (index != null) {
-                                            final alarmId = alarmList[index].id!;
-                                            await FirestoreService().updateAlarm(uid, alarmId, alarmData);
-                                        } else {
-                                            await FirestoreService().saveAlarm(uid, alarmData);
-                                        }
-                                        await _loadAlarmsFromFirestore();
-                                        Navigator.pop(context);
+                                      if (index != null) {
+                                        final alarmId = alarmList[index].id!;
+                                        await FirestoreService().updateAlarm(userId, alarmId, alarmData);
+                                      } else {
+                                        await FirestoreService().saveAlarm(userId, alarmData);
+                                      }
+                                      await _loadAlarmsFromFirestore();
+                                      Navigator.pop(context);
                                     },
 
                                     style: ElevatedButton.styleFrom(
@@ -572,9 +574,10 @@ class AlarmPageState extends State<AlarmPage> {
                             //로컬 UI 업데이트
                             setState(() => alarm.isEnabled = v);
                             // firestore 업데이트
-                            final uid = FirebaseAuth.instance.currentUser!.uid;
+                            final user = FirebaseAuth.instance.currentUser!;
+                            final String userId = user.displayName!;
                             await FirestoreService().updateAlarm(
-                                uid,
+                                userId,
                                 alarm.id!,            // Firestore 문서 ID
                                 {"isEnabled": v},
                             );
@@ -609,14 +612,15 @@ class AlarmPageState extends State<AlarmPage> {
               right: 20,
               child: ElevatedButton(
                 onPressed: () async {
-                    final uid = FirebaseAuth.instance.currentUser!.uid;
+                  final user = FirebaseAuth.instance.currentUser!;
+                  final String userId = user.displayName!;
                     final toDelete = selectedIndexes.toList()
                         ..sort((a, b) => b.compareTo(a));
                     // 1) Firestore 삭제
                     for (final idx in toDelete) {
                         final alarm = alarmList[idx];
                         if (alarm.id != null) {
-                            await FirestoreService().deleteAlarm(uid, alarm.id!);
+                            await FirestoreService().deleteAlarm(userId, alarm.id!);
                         }
                     }
                   setState(() {

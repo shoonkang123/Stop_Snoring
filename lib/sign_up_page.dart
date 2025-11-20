@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'customer_page.dart';
+import 'firestore_service.dart';
 
 class SignUpPage extends StatelessWidget {
   // 각 입력 필드(TextField)의 값을 가져오기 위한 컨트롤러 선언
@@ -132,7 +133,7 @@ class SignUpPage extends StatelessWidget {
                                 borderRadius: BorderRadius.circular(8), // 모서리 둥글게
                               ),
                             ),
-                            onPressed: () {
+                            onPressed: () async {
                               final id = idController.text.trim();
                               final email = emailController.text.trim();
                               final password = passwordController.text;
@@ -192,15 +193,40 @@ class SignUpPage extends StatelessWidget {
                                 return;
                               }
 
+                              // 파이어 스토어에 회원가입 아이디, 이메일, 비번 저장
+                              final service = FirestoreService();
 
-                              // 모든 조건이 만족되면 다음 페이지로 이동
+                              final errorMessage = await service.registerUser(
+                                userId: id,
+                                email: email,
+                                password: password,
+                              );
+
+                              if (errorMessage != null) {
+                                if (!context.mounted) return;
+                                showDialog(
+                                  context: context,
+                                  builder: (context) => AlertDialog(
+                                    title: const Text('회원가입 실패'),
+                                    content: Text(errorMessage),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () => Navigator.pop(context),
+                                        child: const Text('확인'),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                                return;
+                              }
+
+                              //회원가입 성공 -> 다음 화면 이동
+                              if (!context.mounted) return;
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(builder: (context) => Customerpage()),
                               );
                             },
-
-
                             child: Text(
                               '회원가입',
                               style: TextStyle(

@@ -6,30 +6,40 @@ class FirestoreService {
   final FirebaseAuth _auth = FirebaseAuth.instance; // [Auth] 사용자 인증용
   final FirebaseFirestore _db = FirebaseFirestore.instance; // [DB] Firestore 접근용
 
-  // 사용자 기본 정보 저장
-  Future<void> saveUserInfo({
-    required String uid,
-    required int Awakenings,
-    required int Irregular_flag,
-  }) async {
-    await _db
-        .collection('users_kim')
-        .doc(uid)
-        .collection('users_info')
-        .doc('basic')
-        .set({
-      'user_id': uid,
-      'Awakenings': Awakenings,
-      'Irregular_flag': Irregular_flag
-    }, SetOptions(merge: true));
+  //현재 로그인한 유저 ID 가져오기
+  String get currentUid {
+    final user = _auth.currentUser;
+    if (user == null){
+      throw Exception("로그인된 사용자가 없습니다.");
+    }
+    return user.uid;
   }
+
+  // // 사용자 기본 정보 저장
+  // Future<void> saveUserInfo({
+  //   required int Awakenings,
+  //   required int Irregular_flag,
+  // }) async {
+  //   final uid = currentUid;
+  //
+  //   await _db
+  //       .collection('users_kim')
+  //       .doc(uid)
+  //       .collection('users_info')
+  //       .doc('basic')
+  //       .set({
+  //     'user_id': uid,
+  //     'Awakenings': Awakenings,
+  //     'Irregular_flag': Irregular_flag
+  //   }, SetOptions(merge: true));
+  // }
 
   // ✅ 취침 시작 기록 함수
   Future<void> startSleep({
-    required String uid,
     required Map<String, dynamic> sleepData,
   }) async {
-  // 오늘 날짜 기준 문서 키 생성 → "2025-11-19"
+    final uid = currentUid;
+    // 오늘 날짜 기준 문서 키 생성 → "2025-11-19"
     final dateKey = DateTime.now().toIso8601String().substring(0, 10);
 
     await _db
@@ -41,8 +51,7 @@ class FirestoreService {
         ...sleepData,             // 여기서 입력된 sleepData를 그대로 저장
         'start_time': DateTime.now(),
         'created_at': FieldValue.serverTimestamp(),
-      },
-      SetOptions(merge: true));   // 기존 필드 있으면 유지 + 새로운 데이터만 병합
+      }, SetOptions(merge: true));   // 기존 필드 있으면 유지 + 새로운 데이터만 병합
   }
   //알람 저장
   Future<String> saveAlarm(String uid, Map<String, dynamic> alarmData) async {
@@ -113,9 +122,9 @@ class FirestoreService {
   }
   // 🔹 Firebase Auth + Firestore 회원가입 함수
   Future<String?> registerUser({
+    required String userId,
     required String email,
     required String password,
-    required String name,
   }) async {
     try {
       // ✅ [1️⃣ Firebase Authentication - 사용자 등록]
@@ -124,20 +133,17 @@ class FirestoreService {
         email: email,
         password: password,
       );
-      final uid = credential.user!.uid;
+      await credential.user!.updateDisplayName(userId);
 
       // Firestore 'users_kim/{uid}/user_info/basic'
       await _db
           .collection('users_kim')
-          .doc(uid)
+          .doc(userId)
           .collection('users_info')
-          .doc('basic')
+          .doc('information')
           .set({
-        'name': name,
+        'user_id': userId,
         'email': email,
-        'Awakenings': 0,
-        'Irregular_flag': 0,
-        'created_at': FieldValue.serverTimestamp(),
       });
 
       return null; // null이면 성공 (에러 없음)
@@ -148,5 +154,32 @@ class FirestoreService {
       // ❌ [Firestore 또는 기타 에러]
       return e.toString(); //
     }
+  }
+
+  //개인 정보 저장
+  Future<void> saveUserInformation({
+    required String name,
+    required String gender,
+    required int age,
+    required int awakenings,
+  }) async {
+    final user = FirebaseAuth.instance.currentUser!;
+    if(user==null){
+      throw Exception("로그인된 사용자가 없습니다.");
+    }
+
+    final String? userId = user.displayName;
+    await _db
+        .collection('users_kim')
+        .doc(userId)
+        .collection('users_info')
+        .doc('information')
+        .set({
+      'name': name,
+      'gender': gender,
+      'age': age,
+      'awakenings': awakenings,
+      'time_at': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
   }
 }

@@ -55,12 +55,13 @@ class HomePage extends StatelessWidget {
             // 🔘 Start 버튼
             ElevatedButton(
                 onPressed: () async {
-                  final uid = FirebaseAuth.instance.currentUser!.uid; // 나중에 로그인한 UID로 변경
+                  final user = FirebaseAuth.instance.currentUser!;
+                  final String userId = user.displayName!;
 
                   //최근 7일 성공률 데이터 가져오기
                   final predictionsRef = FirebaseFirestore.instance
                     .collection("users")
-                    .doc(uid)
+                    .doc(userId)
                     .collection("predictions")
                     .orderBy("timestamp", descending: true)
                     .limit(7);
@@ -80,7 +81,7 @@ class HomePage extends StatelessWidget {
                   //----firestore에서 알람 목록 불러오기----
                   final alarmSnap = await FirebaseFirestore.instance
                     .collection("users_kim")
-                    .doc(uid)
+                    .doc(userId)
                     .collection("users_info")
                     .doc("alarms")
                     .collection("alarms")
@@ -201,7 +202,7 @@ class HomePage extends StatelessWidget {
                   //firestore에서 사용자 개인 설정값 가져오기
                   final userData = await FirebaseFirestore.instance
                       .collection('users_kim')
-                      .doc(uid)
+                      .doc(userId)
                       .collection('users_info')
                       .doc('basic')
                       .get();
@@ -211,7 +212,7 @@ class HomePage extends StatelessWidget {
                   final Irregular_flag = (basic_data["Irregular_flag"] ?? 0) as int;
 
                   final inputData = {
-                    "user_id": uid,
+                    "user_id": userId,
                     "Bed_sin": Bed_sin,
                     "Bed_cos": Bed_cos,
                     "Wake_sin": Wake_sin,
@@ -229,7 +230,6 @@ class HomePage extends StatelessWidget {
 
                   // 1) Firestore에 수면 데이터 기록
                   await FirestoreService().startSleep(
-                    uid:uid,
                     sleepData:inputData,
                   );
 
