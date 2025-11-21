@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'home_page.dart';
 import 'sign_up_page.dart';
+import 'alarm_screen.dart';
 
 void main() {
   runApp(const MyApp());
@@ -28,6 +29,12 @@ class MyApp extends StatelessWidget {
         useMaterial3: true,
       ),
       home: const LoginPage(),
+      // const LoginPage(), 로그인 페이지로 시작,
+      // const AlarmScreen(), 알람 울렸을 때 페이지로 시작
+
+      routes: {
+        '/alarm': (context) => const AlarmScreen(),
+      },
     );
   }
 }
