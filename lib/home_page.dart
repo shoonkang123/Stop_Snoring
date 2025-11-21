@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'alarm_page.dart';
-import 'sleep_tracker_page.dart';
 import 'firestore_service.dart'; // 사용 안 하면 나중에 제거해도 됨
 import 'dart:math' as math;                    // pi, sin, cos
 import 'dart:convert';                         // jsonEncode, jsonDecode
