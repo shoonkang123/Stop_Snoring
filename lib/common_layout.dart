@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'home_page.dart';
 import 'alarm_page.dart';
 import 'sleep_tracker_page.dart';
+import 'menu_page.dart';
 
 class CommonLayout extends StatelessWidget {
   final Widget body;       // 페이지 body
@@ -51,7 +52,20 @@ class CommonLayout extends StatelessWidget {
               IconButton(
                 icon: const Icon(Icons.menu),
                 color: Colors.black,
-                onPressed: () {},
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => MenuPage(
+                        name: '김승욱',      // TODO: Firebase 값
+                        age: 24,             // TODO
+                        gender: '남자',      // TODO
+                        avgBedTime: '23:30', // TODO
+                        avgWakeTime: '07:30',// TODO
+                      ),
+                    ),
+                  );
+                },
               )
             ],
           ),
