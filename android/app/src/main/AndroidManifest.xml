@@ -1,15 +1,15 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- ✅ 알림 표시 (Android 13+, POST_NOTIFICATIONS 런타임 권한 필요) -->
+    <!-- ✅ 알림 권한 (Android 13+, POST_NOTIFICATIONS) -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
-    <!-- ✅ 기기 부팅 후에도 알람 다시 등록하려면 (선택이지만 알람앱이면 보통 넣음) -->
-    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
-
-    <!-- ✅ 화면 꺼져 있어도 깨울 수 있게 -->
+    <!-- ✅ 알람이 기기를 깨우도록 (WakeLock) -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
 
-    <!-- ✅ 정확한 알람(AlarmManager exact)용, targetSdk 31+면 권장 -->
+    <!-- ✅ 재부팅 후 알람 다시 등록하려면 (필수는 아니지만 거의 기본) -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
+    <!-- ✅ 정확한 알람(알람 시계처럼 딱 맞게 울리는 용도, Android 12+) -->
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
 
     <application
