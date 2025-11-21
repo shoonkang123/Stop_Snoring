@@ -5,11 +5,58 @@ import 'home_page.dart';
 import 'sign_up_page.dart';
 import 'alarm_screen.dart';
 
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'dart:io' show Platform;
+import 'package:permission_handler/permission_handler.dart';
+
+// 🔔 알림 플러그인 전역 객체 (이미 있다면 중복 선언 X)
+final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+FlutterLocalNotificationsPlugin();
+
+// 🔔 알림 권한 요청 (Android 13+ 포함)
+Future<void> _requestNotificationPermission() async {
+  if (!Platform.isAndroid) return;
+
+  // 현재 권한 상태 확인
+  final status = await Permission.notification.status;
+
+  if (status.isGranted) {
+    // 이미 허용
+    return;
+  }
+
+  // 권한 요청
+  final result = await Permission.notification.request();
+
+  // 필요하면 여기서 permanentlyDenied면 설정 화면 보내는 코드도 추가 가능
+  // if (result.isPermanentlyDenied) {
+  //   await openAppSettings();
+  // }
+}
+
+
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
   await Firebase.initializeApp();
+
+  const AndroidInitializationSettings androidInitSettings =
+  AndroidInitializationSettings('@mipmap/ic_launcher');
+
+  const InitializationSettings initSettings = InitializationSettings(
+    android: androidInitSettings,
+  );
+
+  await flutterLocalNotificationsPlugin.initialize(initSettings);
+
+  // ✅ 앱 시작 시 권한 요청
+  await _requestNotificationPermission();
+
   runApp(const MyApp());
 }
+
+
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});

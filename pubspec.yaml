@@ -27,6 +27,7 @@ dependencies:
   cloud_firestore: ^4.15.8
   vibration: ^3.1.4
   device_info_plus: ^9.0.3
+  permission_handler: ^11.0.1
 
 dev_dependencies:
   flutter_test:
