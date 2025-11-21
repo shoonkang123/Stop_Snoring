@@ -393,39 +393,93 @@ class AlarmPageState extends State<AlarmPage> {
   }
 
   /// 다음 울릴 알람 계산
+  /// 다음 울릴 알람 계산 (요일 포함)
+  /// 다음 울릴 알람 계산 (요일 + 'n일 후'까지 표시)
   String? getNextAlarmText() {
-    // 켜진 알람 찾기
-    final enabled =
-    alarmList.where((a) => a.isEnabled).toList();
+    // 켜져 있는 알람만 가져오기
+    final enabled = alarmList.where((a) => a.isEnabled).toList();
     if (enabled.isEmpty) return null;
 
-    final now = TimeOfDay.now();
-    final nowTotal = now.hour * 60 + now.minute;
-    
-    int? minDiff;
+    final now = DateTime.now();
 
-    // 알람 분단위로 계산 후 젤 빠른 알람 시간 찾기
+    int? minDiff; // 가장 가까운 알람까지 남은 시간(분)
+
+    final Map<String, int> weekdayIndex = {
+      '월': DateTime.monday,
+      '화': DateTime.tuesday,
+      '수': DateTime.wednesday,
+      '목': DateTime.thursday,
+      '금': DateTime.friday,
+      '토': DateTime.saturday,
+      '일': DateTime.sunday,
+    };
+
     for (final alarm in enabled) {
-      final total = alarm.time.hour * 60 + alarm.time.minute;
-      int diff = total - nowTotal;
-      if (diff < 0) diff += 1440;
+      // 요일 선택 안 했으면 매일 울리는 알람으로 간주
+      final List<String> alarmDays =
+      alarm.days.isEmpty ? weekDays : alarm.days;
 
-      if (minDiff == null || diff < minDiff) {
-        minDiff = diff;
+      for (final dayLabel in alarmDays) {
+        final int? targetWeekday = weekdayIndex[dayLabel];
+        if (targetWeekday == null) continue;
+
+        int dayDiff = targetWeekday - now.weekday;
+        if (dayDiff < 0) {
+          dayDiff += 7;
+        }
+
+        final DateTime candidate = DateTime(
+          now.year,
+          now.month,
+          now.day,
+          alarm.time.hour,
+          alarm.time.minute,
+        ).add(Duration(days: dayDiff));
+
+        int diffMinutes = candidate.difference(now).inMinutes;
+
+        // 오늘 이미 지난 시간이면 다음 주 같은 시간으로
+        if (diffMinutes <= 0) {
+          diffMinutes += 7 * 24 * 60;
+        }
+
+        if (minDiff == null || diffMinutes < minDiff!) {
+          minDiff = diffMinutes;
+        }
       }
     }
 
     if (minDiff != null) {
-      final h = minDiff ~/ 60;
-      final m = minDiff % 60;
+      final int totalMinutes = minDiff!;
+      final int days = totalMinutes ~/ (24 * 60);       // 며칠 후인지
+      final int remainMinutes = totalMinutes % (24 * 60);
+      final int hours = remainMinutes ~/ 60;            // 남은 시간
+      final int minutes = remainMinutes % 60;           // 남은 분
 
-      if (h > 0 && m > 0) return "$h시간 $m분 후에 울려요";
-      if (h > 0) return "$h시간 후에 울려요";
-      return "$m분 후에 울려요";
+      // ✅ 1일 이상 남았을 때
+      if (days > 0) {
+        if (hours > 0 && minutes > 0) {
+          return "${days}일 ${hours}시간 ${minutes}분 후에 울려요";
+        } else if (hours > 0) {
+          return "${days}일 ${hours}시간 후에 울려요";
+        } else if (minutes > 0) {
+          return "${days}일 ${minutes}분 후에 울려요";
+        } else {
+          // 정확히 n일 뒤 (예: 48시간 딱)
+          return "${days}일 후에 울려요";
+        }
+      }
+
+      // ✅ 하루 이내일 때(기존처럼 시간/분만 표시)
+      if (hours > 0 && minutes > 0) return "$hours시간 $minutes분 후에 울려요";
+      if (hours > 0) return "$hours시간 후에 울려요";
+      return "$minutes분 후에 울려요";
     }
 
     return null;
   }
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -539,7 +593,6 @@ class AlarmPageState extends State<AlarmPage> {
                             ),
                           ],
                         ),
-
                         subtitle: Row(
                           children: weekDays.map((day) {
                             final isSelected =
