@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;       // http.post
 import 'package:intl/intl.dart';               // DateFormat
 import 'package:cloud_firestore/cloud_firestore.dart'; // FirebaseFirestore
 import 'package:firebase_auth/firebase_auth.dart';     // 로그인 uid
+import 'common_layout.dart';
 
 
 

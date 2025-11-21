@@ -44,7 +44,6 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
-
 #------승욱 AI--------
 # --- 가상환경 ---
 venv/

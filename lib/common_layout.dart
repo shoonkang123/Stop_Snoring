@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'home_page.dart';
 import 'alarm_page.dart';
-import 'sleep_page.dart';
+import 'sleep_tracker_page.dart';
 
 class CommonLayout extends StatelessWidget {
   final Widget body;       // 페이지 body
@@ -99,7 +99,7 @@ class CommonLayout extends StatelessWidget {
           else if (i == 2) {
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(builder: (_) => const SleepPage()),
+              MaterialPageRoute(builder: (_) => const SleepTrackerPage()),
             );
           }
         },
