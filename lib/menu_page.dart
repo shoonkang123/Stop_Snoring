@@ -1,37 +1,121 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
-class MenuPage extends StatelessWidget {
+class MenuPage extends StatefulWidget {
   const MenuPage({
     super.key,
-    required this.name,
-    required this.age,
-    required this.gender,
     required this.avgBedTime,
     required this.avgWakeTime,
   });
 
-  // 나중에 Firebase에서 받아서 넘겨줄 값들
-  final String name;
-  final int age;
-  final String gender;
   final String avgBedTime;   // 예: '23:30'
   final String avgWakeTime;  // 예: '07:30'
 
-  // 배경색(살짝 핑크 톤) 상수로 빼두기
+  @override
+  State<MenuPage> createState() => _MenuPageState();
+}
+
+class _MenuPageState extends State<MenuPage> {
+  // Firestore / Auth
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _db = FirebaseFirestore.instance;
+
+  // Firestore에서 가져올 값들
+  String? _name;
+  int? _age;
+  String? _gender;
+
+  bool _loading = true;
+  String? _errorMsg;
+
+  // 배경색(살짝 핑크 톤)
   static const Color _bgColor = Color(0xFFFFF1F5);
 
   @override
+  void initState() {
+    super.initState();
+    _loadUserInfo();
+  }
+
+  Future<void> _loadUserInfo() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser!;
+      final String userId = user.displayName!;
+
+      // 🔹 Firestore 경로:
+      // users_kim / {displayName} / users_info / information
+      final infoSnap = await FirebaseFirestore.instance
+          .collection('users_kim')
+          .doc(userId)
+          .collection('users_info')
+          .doc('information')
+          .get();
+
+      if (!infoSnap.exists) {
+        setState(() {
+          _errorMsg = '사용자 정보(information) 문서를 찾을 수 없습니다.';
+          _loading = false;
+        });
+        return;
+      }
+
+      final data = infoSnap.data()!;
+      print('information data = $data'); // 디버그용
+
+      setState(() {
+        _name   = data['name'] as String? ?? '';
+        _age    = (data['age'] as num?)?.toInt();
+        _gender = data['gender'] as String? ?? '';
+        _loading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _errorMsg = '데이터를 불러오는 중 오류가 발생했습니다: $e';
+        _loading = false;
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    Widget bodyChild;
+
+    if (_loading) {
+      bodyChild = const Center(child: CircularProgressIndicator());
+    } else if (_errorMsg != null) {
+      bodyChild = Center(
+        child: Text(
+          _errorMsg!,
+          style: const TextStyle(color: Colors.red),
+        ),
+      );
+    } else {
+      bodyChild = Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _UserInfoCard(
+            name: _name ?? '-',
+            age: _age ?? 0,
+            gender: _gender ?? '-',
+          ),
+          const SizedBox(height: 16),
+          SleepPatternCard(
+            avgBedTime: widget.avgBedTime,
+            avgWakeTime: widget.avgWakeTime,
+          ),
+        ],
+      );
+    }
+
     return Scaffold(
       backgroundColor: _bgColor,
       appBar: AppBar(
-        backgroundColor: _bgColor, // 배경과 동일한 색
-        elevation: 0, // 앱바와 배경 사이 경계선 제거
+        backgroundColor: _bgColor,
+        elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () {
-            Navigator.of(context).pop(); // 뒤로가기
-          },
+          onPressed: () => Navigator.of(context).pop(),
         ),
         centerTitle: true,
         title: const Text(
@@ -44,21 +128,7 @@ class MenuPage extends StatelessWidget {
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _UserInfoCard(
-              name: name,
-              age: age,
-              gender: gender,
-            ),
-            const SizedBox(height: 16),
-            SleepPatternCard(
-              avgBedTime: avgBedTime,
-              avgWakeTime: avgWakeTime,
-            ),
-          ],
-        ),
+        child: bodyChild,
       ),
     );
   }
@@ -82,7 +152,7 @@ class _UserInfoCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16.0),
       decoration: BoxDecoration(
-        color: Colors.white, // 카드 배경
+        color: Colors.white,
         borderRadius: BorderRadius.circular(16.0),
         border: Border.all(
           color: Colors.black12,
@@ -99,12 +169,11 @@ class _UserInfoCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 제목 영역
           const Row(
             children: [
               Icon(
                 Icons.person,
-                color: Colors.amber, // 포인트 컬러
+                color: Colors.amber,
               ),
               SizedBox(width: 8),
               Text(
@@ -123,8 +192,6 @@ class _UserInfoCard extends StatelessWidget {
             thickness: 1,
           ),
           const SizedBox(height: 12),
-
-          // 내용 (Firebase 값 바인딩)
           Text(
             '이름 : $name',
             style: const TextStyle(
@@ -135,7 +202,7 @@ class _UserInfoCard extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            '나이 : $age세',
+            '나이 : ${age}세',
             style: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w500,
@@ -165,15 +232,14 @@ class SleepPatternCard extends StatefulWidget {
     required this.avgWakeTime,
   });
 
-  final String avgBedTime;   // 예: '23:30'
-  final String avgWakeTime;  // 예: '07:30'
+  final String avgBedTime;
+  final String avgWakeTime;
 
   @override
   State<SleepPatternCard> createState() => _SleepPatternCardState();
 }
 
 class _SleepPatternCardState extends State<SleepPatternCard> {
-  // 드롭다운 옵션 (수면 중 깨는 횟수)
   final List<String> _wakeOptions = [
     '0회',
     '1회',
@@ -189,7 +255,7 @@ class _SleepPatternCardState extends State<SleepPatternCard> {
     return Container(
       padding: const EdgeInsets.all(16.0),
       decoration: BoxDecoration(
-        color: Colors.white, // 카드 배경
+        color: Colors.white,
         borderRadius: BorderRadius.circular(16.0),
         border: Border.all(
           color: Colors.black12,
@@ -206,7 +272,6 @@ class _SleepPatternCardState extends State<SleepPatternCard> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 제목 영역
           const Row(
             children: [
               Icon(
@@ -230,22 +295,16 @@ class _SleepPatternCardState extends State<SleepPatternCard> {
             thickness: 1,
           ),
           const SizedBox(height: 12),
-
-          // 평균 자는 시간 (수평 정렬)
           _buildLabelValueRow(
             label: '평균 자는 시간',
-            value: widget.avgBedTime, // 🔹 Firebase 값 바인딩 예정
+            value: widget.avgBedTime,
           ),
           const SizedBox(height: 6),
-
-          // 평균 일어나는 시간 (수평 정렬)
           _buildLabelValueRow(
             label: '평균 일어나는 시간',
-            value: widget.avgWakeTime, // 🔹 Firebase 값 바인딩 예정
+            value: widget.avgWakeTime,
           ),
           const SizedBox(height: 12),
-
-          // 수면 중 깨는 횟수 (드롭다운)
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -285,7 +344,6 @@ class _SleepPatternCardState extends State<SleepPatternCard> {
     );
   }
 
-  /// 라벨 + 값 한 줄 수평 정렬용 헬퍼
   static Widget _buildLabelValueRow({
     required String label,
     required String value,

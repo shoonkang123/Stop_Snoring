@@ -56,10 +56,7 @@ class CommonLayout extends StatelessWidget {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => MenuPage(
-                        name: '김승욱',      // TODO: Firebase 값
-                        age: 24,             // TODO
-                        gender: '남자',      // TODO
+                      builder: (_) => const MenuPage(
                         avgBedTime: '23:30', // TODO
                         avgWakeTime: '07:30',// TODO
                       ),
