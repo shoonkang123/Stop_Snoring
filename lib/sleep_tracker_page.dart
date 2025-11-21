@@ -28,9 +28,63 @@ class _SleepTrackerPageState extends State<SleepTrackerPage> {
   @override
   void initState() {
     super.initState();
+    // 목표 수면 시간 로드
+    _loadGoalTimeFromFirestore();
     // firestore에 수면 데이터 가져오기
     _loadSleepFromFirestore();
   }
+
+  Future<void> _loadGoalTimeFromFirestore() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+
+      final String userId = user.displayName!;
+
+      final infoRef = FirebaseFirestore.instance
+        .collection("users_kim")
+        .doc(userId)
+        .collection("users_info")
+        .doc("information");
+
+      final snap = await infoRef.get();
+      if (!snap.exists) return;
+
+      final data = snap.data();
+      final stored = data?["goal_sleep_time"] as String?;
+
+      if (stored != null && stored.isNotEmpty) {
+        setState(() {
+          goalTime = stored; // 예: "07:30"
+        });
+      }
+    } catch (e) {
+      print("load goal_sleep_time error: $e");
+    }
+  }
+
+  Future<void> _saveGoalTimeToFirestore(String hhmm) async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+
+      final String userId = user.displayName!;
+
+      final infoRef = FirebaseFirestore.instance
+          .collection("users_kim")
+          .doc(userId)
+          .collection("users_info")
+          .doc("information");
+
+      await infoRef.set(
+        {"goal_sleep_time": hhmm},
+        SetOptions(merge: true),
+      );
+    } catch (e) {
+      print("save goal_sleep_time error: $e");
+    }
+  }
+
   //수면 데이터 불러오기 + 해당 요일 한개 + 그 주 데이터 가져오기
   Future<void> _loadSleepFromFirestore() async {
     try {
@@ -42,7 +96,7 @@ class _SleepTrackerPageState extends State<SleepTrackerPage> {
         return;
       }
 
-      final String userId = user.displayName ?? user.uid;
+      final String userId = user.displayName!;
 
       final colRef = FirebaseFirestore.instance
           .collection("users_kim")
@@ -81,16 +135,15 @@ class _SleepTrackerPageState extends State<SleepTrackerPage> {
       // created가 속하 "주"의 월요일 0시~ 다음 주 월요일 0시 계산
       final dayOnly = DateTime(created.year, created.month, created.day);
       final int weekday = dayOnly.weekday;
-      final DateTime weekStart =
-      dayOnly.subtract(Duration(days: weekday - 1));
+      final DateTime weekStart = dayOnly.subtract(Duration(days: weekday - 1));
       final DateTime weekEnd = weekStart.add(const Duration(days: 7)); // 다음주 월요일 0시
 
       // 3) 그 주에 속한 모든 수면 기록 가져오기
       final weekSnap = await colRef
           .where("created_at",
-          isGreaterThanOrEqualTo: Timestamp.fromDate(weekStart))
+            isGreaterThanOrEqualTo: Timestamp.fromDate(weekStart))
           .where("created_at",
-          isLessThan: Timestamp.fromDate(weekEnd))
+            isLessThan: Timestamp.fromDate(weekEnd))
           .orderBy("created_at")
           .get();
 
@@ -159,11 +212,13 @@ class _SleepTrackerPageState extends State<SleepTrackerPage> {
           actions: [
             TextButton(onPressed: () => Navigator.pop(context), child: const Text("취소")),
             ElevatedButton(
-              onPressed: () {
+              onPressed: () async {
+                final newGoal = "${hourController.text.padLeft(2, '0')}:${minuteController.text.padLeft(2, '0')}";
                 setState(() {
-                  goalTime =
-                  "${hourController.text.padLeft(2, '0')}:${minuteController.text.padLeft(2, '0')}";
+                  goalTime = newGoal;
                 });
+
+                await _saveGoalTimeToFirestore(newGoal);
                 Navigator.pop(context);
               },
               child: const Text("저장"),
