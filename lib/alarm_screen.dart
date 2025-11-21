@@ -44,109 +44,116 @@ class _AlarmScreenState extends State<AlarmScreen> {
   }
 
   String _formatTime(DateTime dt) {
-    // HH:mm:ss 형식
-    final h = dt.hour.toString().padLeft(2, '0');
+    // 24시간 → 12시간 (15시 = 3시), 초 제거 (h:mm)
+    final h24 = dt.hour;
+    int h12 = h24 % 12;
+    if (h12 == 0) h12 = 12;
+
     final m = dt.minute.toString().padLeft(2, '0');
-    final s = dt.second.toString().padLeft(2, '0');
-    return '$h:$m:$s';
+    return '$h12:$m';
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
-        child: Column(
-          children: [
-            const SizedBox(height: 40),
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.max,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              // 위 여백 (날짜/시간 조금 내리기용)
+              const SizedBox(height: 60),
 
-            // 중앙 상단: 현재 날짜 & 시간
-            Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  _formatDate(_now),
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w400,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  _formatTime(_now),
-                  style: const TextStyle(
-                    fontSize: 56,
-                    fontWeight: FontWeight.bold,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ],
-            ),
-
-            const Spacer(),
-
-            // 가운데 안내 텍스트
-            const Text(
-              '알람 울리는 중',
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-
-            const Spacer(),
-
-            // 중앙 하단: 알람 미루기 + 끄기 버튼
-            Padding(
-              padding: const EdgeInsets.only(bottom: 32.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
+              // 날짜 + 시간
+              Column(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  // 알람 미루기 버튼 (UI만, 로직 없음)
-                  ElevatedButton(
-                    onPressed: () {
-                      // TODO: 알람 미루기 로직 추가
-                    },
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: 16,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(999),
-                      ),
+                  Text(
+                    _formatDate(_now),
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w400,
                     ),
-                    child: const Text(
-                      '알람 미루기',
-                      style: TextStyle(fontSize: 18),
-                    ),
+                    textAlign: TextAlign.center,
                   ),
-                  const SizedBox(width: 16),
-                  // 끄기 버튼 (중앙 하단)
-                  ElevatedButton(
-                    onPressed: () {
-                      // TODO: 실제 알람 끄기(사운드 정지 등) 로직 추가
-                      Navigator.of(context).maybePop();
-                    },
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 32,
-                        vertical: 16,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      backgroundColor: Colors.redAccent,
+                  const SizedBox(height: 8),
+                  Text(
+                    _formatTime(_now),
+                    style: const TextStyle(
+                      fontSize: 96,
+                      fontWeight: FontWeight.bold,
                     ),
-                    child: const Text(
-                      '끄기',
-                      style: TextStyle(fontSize: 18),
-                    ),
+                    textAlign: TextAlign.center,
                   ),
                 ],
               ),
-            ),
-          ],
+
+              // 날짜/시간과 버튼 사이의 공간
+              const Spacer(),
+
+              // 하단 버튼 블럭 (위로 조금 끌어올리기 위해 bottom padding 줄이고 Spacer 하나만 사용)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 100.0),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // 알람 미루기 버튼 (위, 조금 더 작게)
+                    SizedBox(
+                      width: 240,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          // TODO: 알람 미루기 로직 추가
+                        },
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 24,
+                            vertical: 12,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                        ),
+                        child: const Text(
+                          '알람 미루기',
+                          style: TextStyle(fontSize: 17),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 60), //버튼 사이 간격
+
+                    // 끄기 버튼 (아래, 좀 더 큼)
+                    SizedBox(
+                      width: 330,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          // TODO: 실제 알람 끄기(사운드 정지 등) 로직 추가
+                          Navigator.of(context).maybePop();
+                        },
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 20,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          backgroundColor: Colors.redAccent,
+                        ),
+                        child: const Text(
+                          '알람 끄기',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
