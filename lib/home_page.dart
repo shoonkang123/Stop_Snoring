@@ -60,18 +60,22 @@ class HomePage extends StatelessWidget {
 
                   //최근 7일 성공률 데이터 가져오기
                   final predictionsRef = FirebaseFirestore.instance
-                    .collection("users")
+                    .collection("users_kim")
                     .doc(userId)
-                    .collection("predictions")
-                    .orderBy("timestamp", descending: true)
+                    .collection("Sleep_data")
+                    .orderBy("created_at", descending: true)
                     .limit(7);
 
                   final snap = await predictionsRef.get();
-                  double AvgSuccessrate = 0.52;
+                  double AvgSuccessrate = 1.0;
 
                   if (snap.docs.isNotEmpty) {
                     final rates = snap.docs.map((doc) {
-                    return (doc.data()["success_rate"] ?? 0.52).toDouble();
+                      final data = doc.data();
+                      final v = data["alarm_success"];
+                      if (v is num) return v.toDouble();
+                      if (v is bool) return v ? 1 : 0;
+                    return 1.0;
                   }).toList();
 
                   AvgSuccessrate = rates.reduce((a,b) => a + b) / rates.length;
@@ -204,11 +208,11 @@ class HomePage extends StatelessWidget {
                       .collection('users_kim')
                       .doc(userId)
                       .collection('users_info')
-                      .doc('basic')
+                      .doc('information')
                       .get();
 
                   final basic_data = userData.data() ?? {};
-                  final Awakenings = (basic_data["Awakenings"] ?? 0) as int;
+                  final Awakenings = (basic_data["awakenings"] ?? 0) as int;
                   final Irregular_flag = (basic_data["Irregular_flag"] ?? 0) as int;
 
                   final inputData = {
@@ -228,10 +232,6 @@ class HomePage extends StatelessWidget {
                     "Alarm_success_rate": AvgSuccessrate,
                   };
 
-                  // 1) Firestore에 수면 데이터 기록
-                  await FirestoreService().startSleep(
-                    sleepData:inputData,
-                  );
 
                   // 2) FastAPI 호출
                   try {
@@ -247,8 +247,8 @@ class HomePage extends StatelessWidget {
                     if (response.statusCode == 200) {
                       final data = jsonDecode(response.body);
                       // 예측값 꺼내기
-                      final model_used = data["model_used"];
-                      final strength = data["strength"];
+                      final model_used = data["model_used"] as String;
+                      final int strength = (data["strength"] as num).toInt();
                       // Snackbar + 화면이 아직 살아있는지 체크
                       if (!context.mounted) return;
                       // 예측 결과 출력
@@ -260,6 +260,7 @@ class HomePage extends StatelessWidget {
                         context,
                         MaterialPageRoute(
                           builder: (context) => AlarmPage(
+                            alarm_strength: strength,
                             //******모델의 출력 알람 강도를 사용하고 싶으면 생성자 생성 *******
                           ),
                         ),

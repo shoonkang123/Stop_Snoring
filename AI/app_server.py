@@ -9,10 +9,11 @@ import firebase_admin
 from firebase_admin import credentials, firestore
 from AI.model.Personalize_freeze import train_transferModel
 from AI.model.Personalize_freeze import transferModel
+from datetime import datetime, timezone
 
 # fire base 부분
 # 서비스 키 받아오기
-cred = credentials.Certificate(r"C:\Users\kksy0316\source\repos\Stop_Snoring\firebase\alarmproject-d5329-firebase-adminsdk-fbsvc-7e5c211733.json")
+cred = credentials.Certificate(r"C:\git_test_alarm\Stop_Snoring\firebase\pasnallized-alarm-service-firebase-adminsdk-fbsvc-c001641e27.json")
 # firebase 앱 초기화
 firebase_admin.initialize_app(cred)
 # firesotre 클라이언트 생성
@@ -26,7 +27,7 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 model_lightgbm = lgb.Booster(model_file="AI/weight_pt/lightGBM_real_alarm_model.txt")
 model_lstm = transferModel()
 # 추후 개인 사용자 데이터 30일치 생기면 이 부분 수정 해야 함
-ckpt_personal = torch.load(r"C:\Users\kksy0316\source\repos\Alarm_project\models\personalized_model.pt", map_location=device)
+ckpt_personal = torch.load(r"C:\git_test_alarm\Stop_Snoring\AI\weight_pt\personalized_model.pt", map_location=device)
 model_lstm.load_state_dict(ckpt_personal)
 
 
@@ -236,13 +237,16 @@ def predict_alarm(input: PredictInput):
 
     #firestore에서 수면 기록 개수 확인
     logs_ref = (
-        db.collection("sleep_logs")
+        db.collection("users_kim")
         .document(user_id)
-        .collection("logs").get()
+        .collection("Sleep_data")
+        .get()
     )
     total_logs = len(logs_ref)
 
     use_lstm = total_logs >= 30
+    model_used = ""
+    strength = 0
 
     if not use_lstm:
         #lightGBM 입력 피처
@@ -259,10 +263,8 @@ def predict_alarm(input: PredictInput):
         probs = model_lightgbm.predict(lgb_features)[0]
         lgb_pred = int(np.argmax(probs) + 1)
 
-        result = {
-            "model_used" : "LightGBM",
-            "strength": lgb_pred
-        }
+        model_used = "LightGBM"
+        strength = lgb_pred
 
     else:
         lstm_features = np.array([
@@ -291,11 +293,37 @@ def predict_alarm(input: PredictInput):
             # 평균 알람 성공률 피처를 어떻게 가져올 지 생각해야 햠
             if input.Alarm_success_rate < 0.5:
                 lstm_pred = min(lstm_pred + 1, 4)
-        result = {
-            "model_used": "LSTM",
-            "strength": lstm_pred
-        }
 
-    db.collection("users").document(user_id).collection("predictions").add(result)
+        model_used = "LSTM"
+        strength = lstm_pred
 
-    return result
+    date_key = datetime.now(timezone.utc).strftime("%Y-%m-%d_%H-%M")
+
+    doc_data = {
+        "user_id": input.user_id,
+        "Bed_sin": input.Bed_sin,
+        "Bed_cos": input.Bed_cos,
+        "Wake_sin": input.Wake_sin,
+        "Wake_cos": input.Wake_cos,
+        "Sleep_duration": input.Sleep_duration,
+        "Sleep_date_sin": input.Sleep_date_sin,
+        "Sleep_date_cos": input.Sleep_date_cos,
+        "Wake_date_sin": input.Wake_date_sin,
+        "Wake_date_cos": input.Wake_date_cos,
+        "Weekday": input.Weekday,
+        "Awakenings": input.Awakenings,
+        "Irregular_flag": input.Irregular_flag,
+        "Alarm_success_rate": input.Alarm_success_rate,
+        "model_used": model_used,
+        "strength": strength,
+        "created_at": firestore.SERVER_TIMESTAMP,
+    }
+
+    # firestore에 저장
+    db.collection("users_kim").document(user_id).collection("Sleep_data").document(date_key).set(doc_data)
+
+    # 앱에 반환
+    return {
+        "model_used": model_used,
+        "strength": strength,
+    }

@@ -24,7 +24,12 @@ class Alarm {
 }
 
 class AlarmPage extends StatefulWidget {
-  const AlarmPage({super.key});
+  final int? alarm_strength;
+
+  const AlarmPage({
+    super.key,
+    this.alarm_strength,
+  });
 
   @override
   State<AlarmPage> createState() => AlarmPageState();

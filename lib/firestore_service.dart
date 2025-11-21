@@ -38,13 +38,14 @@ class FirestoreService {
   Future<void> startSleep({
     required Map<String, dynamic> sleepData,
   }) async {
-    final uid = currentUid;
+    final user = FirebaseAuth.instance.currentUser!;
+    final String userId = user.displayName!;
     // 오늘 날짜 기준 문서 키 생성 → "2025-11-19"
     final dateKey = DateTime.now().toIso8601String().substring(0, 10);
 
     await _db
       .collection('users_kim')        // users_kim이 아니라 실제 협업용 users
-      .doc(uid)
+      .doc(userId)
       .collection('Sleep_data')
       .doc(dateKey)
       .set({
