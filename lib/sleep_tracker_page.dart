@@ -1,6 +1,8 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'common_layout.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class SleepTrackerPage extends StatefulWidget {
   const SleepTrackerPage({super.key});
@@ -12,9 +14,114 @@ class SleepTrackerPage extends StatefulWidget {
 class _SleepTrackerPageState extends State<SleepTrackerPage> {
   String goalTime = "08:00";
 
+  // 0:월 ~ 6:일
+  List<double> sleepData = List<double>.filled(7,0.0);
+
+  //달성률 계산에 사용할 가장 최근 수면 시간
+  double last_Sleep_duration_hours = 0.0;
+
   // 주간 수면 데이터(시간 단위, 0.0~12.0)
-  final List<double> sleepData = [7.0, 6.5, 8.0, 5.5, 9.0, 7.6, 12.0];
   final List<String> week = ["월", "화", "수", "목", "금", "토", "일"];
+
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    // firestore에 수면 데이터 가져오기
+    _loadSleepFromFirestore();
+  }
+  //수면 데이터 불러오기 + 해당 요일 한개 + 그 주 데이터 가져오기
+  Future<void> _loadSleepFromFirestore() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        setState(() {
+          _isLoading = false;
+        });
+        return;
+      }
+
+      final String userId = user.displayName ?? user.uid;
+
+      final colRef = FirebaseFirestore.instance
+          .collection("users_kim")
+          .doc(userId)
+          .collection("Sleep_data");
+
+      // 가장 최근 수면 1개 가져오기
+      final lastSnap = await colRef
+          .orderBy("created_at", descending: true)
+          .limit(1)
+          .get();
+      // 기록이 하나도 없으면 -> 전부 0
+      if (lastSnap.docs.isEmpty) {
+        setState(() {
+          sleepData = List<double>.filled(7, 0.0);
+          last_Sleep_duration_hours = 0.0;
+          _isLoading = false;
+        });
+        return;
+      }
+
+      final lastDoc = lastSnap.docs.first;
+      final lastData = lastDoc.data();
+
+      //crated_at에서 dataTime 뽑기
+      final Timestamp ts = lastData["created_at"] as Timestamp;
+      final DateTime created = ts.toDate();
+
+      // 가장 최근 수면시간(Sleep_duration) 달성률 박스에 사용
+      final durAny = lastData["Sleep_duration"] ?? lastData["sleep_duration"];
+      double lastSleepHours = 0.0;
+      if (durAny is num){
+        lastSleepHours = durAny.toDouble();
+      }
+
+      // created가 속하 "주"의 월요일 0시~ 다음 주 월요일 0시 계산
+      final dayOnly = DateTime(created.year, created.month, created.day);
+      final int weekday = dayOnly.weekday;
+      final DateTime weekStart =
+      dayOnly.subtract(Duration(days: weekday - 1));
+      final DateTime weekEnd = weekStart.add(const Duration(days: 7)); // 다음주 월요일 0시
+
+      // 3) 그 주에 속한 모든 수면 기록 가져오기
+      final weekSnap = await colRef
+          .where("created_at",
+          isGreaterThanOrEqualTo: Timestamp.fromDate(weekStart))
+          .where("created_at",
+          isLessThan: Timestamp.fromDate(weekEnd))
+          .orderBy("created_at")
+          .get();
+
+      // 요일별로 값 채우기 (0:월 ~ 6:일)
+      final List<double> weekData = List<double>.filled(7, 0.0);
+
+      for (final doc in weekSnap.docs) {
+        final data = doc.data();
+        final w = data["Weekday"] ?? data["weekday"];
+        final d = data["Sleep_duration"] ?? data["sleep_duration"];
+
+        if (w is num && d is num) {
+          final idx = w.toInt() % 7;   // 0~6
+          weekData[idx] = d.toDouble();  // 그 요일의 가장 최근 값으로 덮어씀
+        }
+      }
+
+      setState(() {
+        sleepData = weekData;
+        last_Sleep_duration_hours = lastSleepHours;
+        _isLoading = false;
+      });
+    } catch (e) {
+      print("sleep data load error: $e");
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  double _recentHours() => last_Sleep_duration_hours;
 
   // 두 카드(버튼) 동일 높이 — 살짝 키워 오버플로우 방지
   static const double cardHeight = 140.0;
@@ -74,9 +181,6 @@ class _SleepTrackerPageState extends State<SleepTrackerPage> {
     final m = int.tryParse(p.length > 1 ? p[1] : '0') ?? 0;
     return h + (m / 60.0);
   }
-
-  // 최근 수면시간(배열 마지막, 데이터 없으면 0)
-  double _recentHours() => sleepData.isNotEmpty ? sleepData.last : 0.0;
 
   // 품질(달성률) 퍼센트 "87%" (목표 0이면 "--%")
   String _qualityPercent() {

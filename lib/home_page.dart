@@ -176,7 +176,8 @@ class HomePage extends StatelessWidget {
                   final alarmDateTime = nearestAlarm;
 
                   //요일
-                  final Weekday = now.weekday % 7;
+                  final weekdayRaw = now.weekday;
+                  final Weekday = (weekdayRaw+6) % 7;
                   //취침 시각
                   final bedhour = now.hour + (now.minute / 60.0);
                   final bedangle = (bedhour / 24.0) * 2 * math.pi;
