@@ -103,7 +103,8 @@ class CommonLayout extends StatelessWidget {
               context,
               MaterialPageRoute(builder: (_) => const AlarmPage()),
             );
-          } else if (i == 1) {
+          }
+          else if (i == 1) {
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(builder: (_) => const HomePage()),

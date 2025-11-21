@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'home_page.dart';
 import 'package:flutter/services.dart';
+import 'firestore_service.dart';
 
 class Customerpage extends StatefulWidget {
   const Customerpage({super.key});
@@ -168,12 +169,12 @@ class _CustomerpageState extends State<Customerpage> {
                               backgroundColor: Colors.amber,
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                             ),
-                            onPressed: () {
+                            onPressed: () async {
                               final name = nameController.text.trim();
-                              final age = ageController.text.trim();
-                              final irregular = irregularController.text.trim();
+                              final ageText = ageController.text.trim();
+                              final irregularText = irregularController.text.trim();
 
-                              if (name.isEmpty || selectedGender == null || age.isEmpty || irregular.isEmpty) {
+                              if (name.isEmpty || selectedGender == null || ageText.isEmpty || irregularText.isEmpty) {
                                 showDialog(
                                   context: context,
                                   builder: (context) => AlertDialog(
@@ -190,11 +191,59 @@ class _CustomerpageState extends State<Customerpage> {
                                 return;
                               }
 
-                              // 다음 페이지로 이동
-                              Navigator.pushReplacement(
-                                context,
-                                MaterialPageRoute(builder: (context) => const HomePage()),
-                              );
+                              //문자열 -> 정수 변환
+                              final age = int.tryParse(ageText);
+                              final awakenings = int.tryParse(irregularText);
+
+                              if (age == null || awakenings == null) {
+                                showDialog(
+                                  context: context,
+                                  builder: (context) => AlertDialog(
+                                    title: const Text('입력 오류'),
+                                    content: const Text('나이와 깨는 횟수는 숫자만 입력해주세요.'),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () => Navigator.pop(context),
+                                        child: const Text('확인'),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                                return;
+                              }
+
+                              final service = FirestoreService();
+
+                              try {
+                                await service.saveUserInformation(
+                                    name: name,
+                                    gender: selectedGender!,
+                                    age: age,
+                                    awakenings: awakenings,
+                                );
+
+                                if (!context.mounted) return;
+                                // 다음 페이지로 이동
+                                Navigator.pushReplacement(
+                                  context,
+                                  MaterialPageRoute(builder: (context) => const HomePage()),
+                                );
+                              } catch(e) {
+                                if (!context.mounted) return;
+                                showDialog(
+                                    context: context,
+                                    builder: (context) => AlertDialog(
+                                        title: const Text('저장 실패'),
+                                        content: Text('사용자 정보를 저장하는 중 오류가 발생했습니다.\n$e'),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () => Navigator.pop(context),
+                                            child: const Text('확인'),
+                                          ),
+                                        ],
+                                    ),
+                                );
+                              }
                             },
                             child: const Text(
                               'Next',

@@ -1,9 +1,12 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'common_layout.dart';
+import 'firestore_service.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 /// 알람 데이터 모델
 class Alarm {
+  String? id;
   TimeOfDay time; // 시간
   bool isEnabled; // 알람 활/비성화
   List<String> days; //요일
@@ -11,6 +14,7 @@ class Alarm {
   bool vibrate; // 진동
 
   Alarm({
+    this.id,
     required this.time,
     this.isEnabled = true,
     required this.days,
@@ -20,19 +24,56 @@ class Alarm {
 }
 
 class AlarmPage extends StatefulWidget {
-  const AlarmPage({super.key});
+  final int? alarm_strength;
+
+  const AlarmPage({
+    super.key,
+    this.alarm_strength,
+  });
 
   @override
   State<AlarmPage> createState() => AlarmPageState();
 }
 
 class AlarmPageState extends State<AlarmPage> {
+  @override
+  void initState() {
+    super.initState();
+    _loadAlarmsFromFirestore();
+  }
   final List<Alarm> alarmList = []; // 설정한 알람
   final List<String> weekDays = ['월', '화', '수', '목', '금', '토', '일'];
 
   // 여러 알람 쉽게 삭제
   bool _isEditing = false;
   final Set<int> selectedIndexes = {};
+
+  Future<void> _loadAlarmsFromFirestore() async {
+    final user = FirebaseAuth.instance.currentUser!;
+    final String userId = user.displayName!;
+    final dataList = await FirestoreService().loadAlarms(userId);
+
+    // Firestore에서 받은 데이터를 UI용 모델로 변환해서 alarmList에 넣기
+    setState(() {
+        alarmList.clear(); // 기존 로컬 알람 비우기
+
+        for (final data in dataList) {
+            alarmList.add(
+                Alarm(
+                    id: data["id"],
+                    time: TimeOfDay(
+                        hour: data["hour"],
+                        minute: data["minute"],
+                    ),
+                    isEnabled: data["isEnabled"] ?? true,
+                    label: data["label"] ?? "",
+                    vibrate: data["vibrate"] ?? true,
+                    days: List<String>.from(data["days"] ?? []),
+                ),
+            );
+        }
+    });
+  }
 
   /// 알람 추가·수정 바텀시트
   Future<void> _showAddAlarmSheet({Alarm? existingAlarm, int? index}) async {
@@ -269,75 +310,75 @@ class AlarmPageState extends State<AlarmPage> {
 
                     /// 저장 / 취소 버튼 (동일 디자인)
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        Expanded(
-                          child: ElevatedButton(
-                            onPressed: () => Navigator.pop(context),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.grey.shade300,
-                              foregroundColor: Colors.black,
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12)),
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                            Expanded(
+                                child: ElevatedButton(
+                                    onPressed: () => Navigator.pop(context),
+                                    style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.grey.shade300,
+                                        foregroundColor: Colors.black,
+                                        padding: const EdgeInsets.symmetric(vertical: 14),
+                                        shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(12)),
+                                    ),
+                                    child: const Text(
+                                        "취소",
+                                        style: TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.bold),
+                                        ),
+                                    ),
                             ),
-                            child: const Text(
-                              "취소",
-                              style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold),
+                            const SizedBox(width: 12),
+
+                            Expanded(
+                                child: ElevatedButton(
+                                    onPressed: () async {
+                                      final user = FirebaseAuth.instance.currentUser!;
+                                      final String userId = user.displayName!;
+                                      final hour24 = isAm ? hour % 12 : (hour % 12) + 12;
+
+                                      if (selectedDays.isEmpty) {
+                                        selectedDays = List.from(weekDays);
+                                      }
+
+                                      final alarmData = {
+                                        "hour": hour24,
+                                        "minute": minute,
+                                        "days": selectedDays,
+                                        "label": labelController.text.trim(),
+                                        "vibrate": vibrate,
+                                        "isEnabled": existingAlarm?.isEnabled ?? true,
+                                      };
+
+                                      if (index != null) {
+                                        final alarmId = alarmList[index].id!;
+                                        await FirestoreService().updateAlarm(userId, alarmId, alarmData);
+                                      } else {
+                                        await FirestoreService().saveAlarm(userId, alarmData);
+                                      }
+                                      await _loadAlarmsFromFirestore();
+                                      Navigator.pop(context);
+                                    },
+
+                                    style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.amber,
+                                        foregroundColor: Colors.black,
+                                        padding: const EdgeInsets.symmetric(vertical: 14),
+                                        shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(12)),
+                                    ),
+                                    child: const Text(
+                                        "저장",
+                                        style: TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.bold),
+                                    ),
+                                ),
                             ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-
-                        //알람 저장
-                        Expanded(
-                          child: ElevatedButton(
-                            onPressed: () {
-                              final hour24 =
-                              isAm ? hour % 12 : (hour % 12) + 12;
-
-                              if (selectedDays.isEmpty) {
-                                selectedDays = List.from(weekDays);
-                              }
-
-                              setState(() {
-                                final newAlarm = Alarm(
-                                  time: TimeOfDay(
-                                      hour: hour24, minute: minute),
-                                  days: selectedDays,
-                                  label: labelController.text.trim(),
-                                  vibrate: vibrate,
-                                );
-
-                                if (index != null) {
-                                  alarmList[index] = newAlarm;
-                                } else {
-                                  alarmList.add(newAlarm);
-                                }
-                              });
-
-                              Navigator.pop(context);
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.amber,
-                              foregroundColor: Colors.black,
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12)),
-                            ),
-                            child: const Text(
-                              "저장",
-                              style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold),
-                            ),
-                          ),
-                        ),
-                      ],
+                        ],
                     ),
-
                     const SizedBox(height: 20),
                   ],
                 ),
@@ -534,8 +575,18 @@ class AlarmPageState extends State<AlarmPage> {
                         )
                             : Switch(
                           value: alarm.isEnabled,
-                          onChanged: (v) => setState(
-                                  () => alarm.isEnabled = v),
+                          onChanged: (v) async {
+                            //로컬 UI 업데이트
+                            setState(() => alarm.isEnabled = v);
+                            // firestore 업데이트
+                            final user = FirebaseAuth.instance.currentUser!;
+                            final String userId = user.displayName!;
+                            await FirestoreService().updateAlarm(
+                                userId,
+                                alarm.id!,            // Firestore 문서 ID
+                                {"isEnabled": v},
+                            );
+                          },
                           thumbColor: WidgetStateProperty
                               .resolveWith((states) =>
                           states.contains(
@@ -565,24 +616,28 @@ class AlarmPageState extends State<AlarmPage> {
               left: 20,
               right: 20,
               child: ElevatedButton(
-                onPressed: () {
+                onPressed: () async {
+                  final user = FirebaseAuth.instance.currentUser!;
+                  final String userId = user.displayName!;
+                    final toDelete = selectedIndexes.toList()
+                        ..sort((a, b) => b.compareTo(a));
+                    // 1) Firestore 삭제
+                    for (final idx in toDelete) {
+                        final alarm = alarmList[idx];
+                        if (alarm.id != null) {
+                            await FirestoreService().deleteAlarm(userId, alarm.id!);
+                        }
+                    }
                   setState(() {
-                    final sorted =
-                    selectedIndexes.toList()
-                      ..sort((a, b) => b.compareTo(a));
-
-                    for (final idx in sorted) {
+                    for (final idx in toDelete) {
                       alarmList.removeAt(idx);
                     }
-
                     selectedIndexes.clear();
                     _isEditing = false;
                   });
 
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                        content:
-                        Text("선택한 알람이 삭제되었습니다.")),
+                    const SnackBar(content: Text("선택한 알람이 삭제되었습니다.")),
                   );
                 },
                 style: ElevatedButton.styleFrom(
