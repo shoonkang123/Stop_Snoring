@@ -47,7 +47,7 @@ class SignUpPage extends StatelessWidget {
                         TextField(
                           controller: idController, // 입력값 제어
                           decoration: InputDecoration(
-                            labelText: 'ID', // 필드에 레이블 텍스트
+                            labelText: '아이디', // 필드에 레이블 텍스트
                             border: OutlineInputBorder( // 기본 테두리 스타일
                               borderRadius: BorderRadius.circular(12),
                             ),
@@ -67,7 +67,7 @@ class SignUpPage extends StatelessWidget {
                           controller: emailController,
                           keyboardType: TextInputType.emailAddress, // 이메일 키보드
                           decoration: InputDecoration(
-                            labelText: 'Email',
+                            labelText: '이메일',
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
@@ -87,7 +87,7 @@ class SignUpPage extends StatelessWidget {
                           controller: passwordController,
                           obscureText: true, // 비밀번호 숨김 처리 (●●●●)
                           decoration: InputDecoration(
-                            labelText: 'Password',
+                            labelText: '비밀번호',
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
@@ -107,7 +107,7 @@ class SignUpPage extends StatelessWidget {
                           controller: confirmPasswordController,
                           obscureText: true,
                           decoration: InputDecoration(
-                            labelText: 'Confirm Password',
+                            labelText: '비밀번호 재확인',
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
