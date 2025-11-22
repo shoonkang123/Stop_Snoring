@@ -14,6 +14,46 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 /// 🔑 알람 울릴 때 어디서든 화면 띄우기 위한 전역 navigatorKey
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
+/// 🔢 AlarmSettings(볼륨, 사운드 파일) → 강도(1~5)로 역변환
+int _strengthFromAlarmSettings(AlarmSettings s) {
+  final String path = s.assetAudioPath;
+  // volume 이 double? 이라서 기본값(1.0) 주고 받기
+  final double v = s.volume ?? 1.0;
+
+  // 4, 5는 사운드 파일로 구분
+  if (path.endsWith('siren5.mp3')) {
+    return 5;
+  } else if (path.endsWith('siren4.mp3')) {
+    return 4;
+  }
+
+  // 나머지(1,2,3)는 good_morning1 + 볼륨으로 구분
+  // 1 → 0.4, 2 → 0.6, 3 → 0.8 로 예약해놨으니까 대략 범위로 나눔
+  if (v <= 0.5) return 1;   // 0.4 근처
+  if (v <= 0.7) return 2;   // 0.6 근처
+  return 3;                 // 그 외는 3 (0.8)
+}
+
+/// 🔢 AlarmSettings.notificationBody → snoozeCount(0~3)로 역변환
+int _snoozeFromAlarmSettings(AlarmSettings s) {
+  final String body = s.notificationBody ?? '';
+  const String prefix = 'SNOOZE:';
+
+  final int idx = body.indexOf(prefix);
+  if (idx == -1) return 0; // SNOOZE: 가 없으면 0으로 간주
+
+  final int start = idx + prefix.length;
+  int end = body.indexOf('|', start);
+  if (end == -1) end = body.length;
+
+  final String numStr = body.substring(start, end);
+  final int? parsed = int.tryParse(numStr);
+
+  if (parsed == null || parsed < 0) return 0;
+  if (parsed > 3) return 3;
+  return parsed;
+}
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
@@ -25,19 +65,25 @@ Future<void> main() async {
   await _requestNotificationPermission();
 
   // 🔔 알람이 실제로 울릴 때마다 호출되는 스트림 리스너
-  Alarm.ringStream.stream.listen((alarmSettings) {
+  Alarm.ringStream.stream.listen((AlarmSettings alarmSettings) {
     final navigator = navigatorKey.currentState;
     if (navigator == null) return;
+
+    // 알람 설정에서 초기 강도 / 스누즈 횟수 계산
+    final int initialStrength = _strengthFromAlarmSettings(alarmSettings);
+    final int initialSnoozeCount = _snoozeFromAlarmSettings(alarmSettings);
 
     // 알람 울리면 AlarmScreen을 전체화면으로 띄우기 (기존 화면 위에만 올림)
     navigator.push(
       MaterialPageRoute(
-        builder: (_) => const AlarmScreen(),
+        builder: (_) => AlarmScreen(
+          initialStrength: initialStrength,
+          initialSnoozeCount: initialSnoozeCount,
+        ),
         fullscreenDialog: true, // 선택사항: 위에서 슬라이드되는 느낌 (iOS)
       ),
     );
   });
-
 
   runApp(const MyApp());
 }
@@ -65,7 +111,7 @@ class MyApp extends StatelessWidget {
       navigatorKey: navigatorKey,          // 🔑 AlarmScreen 띄우는 용도
       debugShowCheckedModeBanner: false,  // DEBUG 리본 제거
 
-      // ✅ 한국어 로케일 적용
+      //  한국어 로케일 적용
       locale: const Locale('ko', 'KR'),
       supportedLocales: const [Locale('ko', 'KR')],
       localizationsDelegates: const [

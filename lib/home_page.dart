@@ -230,7 +230,7 @@ class HomePage extends StatelessWidget {
                     if (!context.mounted) return;
 
                     // 테스트용 강도 (1~5 바꿔가면서 테스트)
-                    //const int testStrength = 5;
+                    //const int testStrength = 3;
 
                     // 예측 결과 출력
                     ScaffoldMessenger.of(context).showSnackBar(

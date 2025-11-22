@@ -25,7 +25,7 @@ class Alarm {
 }
 
 class AlarmPage extends StatefulWidget {
-  final int? alarm_strength;   // ✅ 1~5 강도 (볼륨 + 음악 선택용)
+  final int? alarm_strength;   //  1~5 강도 (볼륨 + 음악 선택용)
 
   const AlarmPage({
     super.key,
@@ -167,10 +167,10 @@ class AlarmPageState extends State<AlarmPage> {
     final settings = alarm.AlarmSettings(
       id: alarmId,
       dateTime: nextDateTime,
-      assetAudioPath: _audioFromStrength, // ✅ 강도에 따른 음악 파일
+      assetAudioPath: _audioFromStrength, // 강도에 따른 음악 파일
       loopAudio: true,
       vibrate: alarmModel.vibrate,
-      volume: _volumeFromStrength,        // ✅ 강도에 따른 볼륨
+      volume: _volumeFromStrength,        // 강도에 따른 볼륨
       fadeDuration: 0.0,
       notificationTitle:
       alarmModel.label.isEmpty ? '알람' : alarmModel.label,
@@ -591,7 +591,7 @@ class AlarmPageState extends State<AlarmPage> {
       final int minutes = afterHours ~/ 60;
       final int seconds = afterHours % 60;
 
-      // ✅ 1일 이상 남았을 때
+      //  1일 이상 남았을 때
       if (days > 0) {
         if (hours > 0 && minutes > 0) {
           return "${days}일 ${hours}시간 ${minutes}분 후에 울려요";
@@ -605,7 +605,7 @@ class AlarmPageState extends State<AlarmPage> {
         }
       }
 
-      // ✅ 하루 이내
+      //  하루 이내
       if (hours > 0) {
         if (minutes > 0) {
           return "${hours}시간 ${minutes}분 후에 울려요";
@@ -614,12 +614,12 @@ class AlarmPageState extends State<AlarmPage> {
         }
       }
 
-      // ✅ 1시간 이내
+      //  1시간 이내
       if (minutes > 0) {
         return "${minutes}분 후에 울려요";
       }
 
-      // ✅ 1분 미만
+      //  1분 미만
       if (seconds > 0) {
         return "1분 이내에 울려요";
       }
