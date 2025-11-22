@@ -4,6 +4,7 @@ import torch.nn as nn
 import torch.optim as optim
 from AI.model.Pretrain import FeatureExtractor
 from collections import Counter
+import os
 
 class transferModel(nn.Module):
     def __init__(self, transfer_input_size=12, pretrain_input_size = 12,
@@ -23,60 +24,150 @@ class transferModel(nn.Module):
         #학습 시 : 1,30,4, 개인 데이터 : 1,1,4
         return out
 
-def train_transferModel(df):
+# def train_transferModel(df, user_id: str):
+#     lr = 1e-3
+#     epochs = 50
+#     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+#
+#     X_train = torch.tensor(df[[
+#         "Bed_sin", "Bed_cos", "Wake_sin", "Wake_cos", "Weekday",
+#         "Sleep_duration", "Irregular_flag", "Awakenings",
+#         "Sleep_date_sin", "Sleep_date_cos", "Wake_date_sin","Wake_date_cos"
+#     ]].values, dtype=torch.float32).unsqueeze(0).to(device)
+#     Y_train = torch.tensor(df["strength"].values-1, dtype=torch.long).to(device)
+#     snooze = torch.tensor(df["snooze_count"].values, dtype=torch.float32).to(device)
+#
+#     model = transferModel(transfer_input_size=12).to(device)
+#     ckpt = torch.load("AI/weight_pt/pretrained_model_full.pt", map_location=device)
+#     model.load_state_dict(ckpt)
+#     # 🔹 FeatureExtractor 고정 (Freeze)
+#     for param in model.feature_extractor.parameters():
+#         param.requires_grad = False
+#     for param in model.lstm.parameters():
+#         param.requires_grad = True
+#     for param in model.fc_out.parameters():
+#         param.requires_grad = True
+#
+#     class_counts = Counter(df["strength"].values - 1)
+#     print("클래스 카운트:", class_counts)
+#     total = sum(class_counts.values())
+#     ratios = {c: count / total for c, count in class_counts.items()}
+#     ratio_threshold = 0.05
+#
+#     mask = df["strength"].apply(lambda c: ratios[c-1] >= ratio_threshold).values
+#     mask = torch.tensor(mask, dtype=torch.bool).to(device)
+#
+#     class_weights = []
+#     for c in range(4):
+#         r = ratios.get(c, 0)
+#         if ratios.get(c, 0) < ratio_threshold or class_counts.get(c, 0) == 0:
+#             class_weights.append(0.5)  # fine-tuning 영향 제거
+#         else:
+#             class_weights.append(total / class_counts[c])
+#
+#     class_weights = torch.tensor(class_weights, dtype=torch.float32).to(device)
+#
+#     criterion = nn.CrossEntropyLoss(weight=class_weights, reduction='none')
+#     optimizer = torch.optim.Adam([
+#         {"params": model.lstm.parameters(), "lr": 1e-4},  # LSTM 아주 약하게
+#         {"params": model.fc_out.parameters(), "lr": 1e-3},
+#     ])
+#
+#     for epoch in range(epochs):
+#         model.train()
+#         optimizer.zero_grad()
+#         outputs = model(X_train)
+#         outputs = outputs.squeeze(0)
+#         loss = criterion(outputs, Y_train)
+#         loss = loss[mask]
+#
+#         weights = 1.0 + 0.05 * (abs(snooze - 1.5)) - 0.2
+#         weights = weights[mask]
+#         weighted_loss = (loss * weights).mean()
+#
+#         weighted_loss.backward()
+#         optimizer.step()
+#
+#         if (epoch + 1) % 5 == 0:
+#             preds = torch.argmax(outputs, dim=1)
+#             acc = (preds[mask] == Y_train[mask]).float().mean()
+#             print(f"Epoch [{epoch + 1}/{epochs}] | Loss: {weighted_loss.item():.4f} | Acc: {acc.item():.4f}")
+#     #유저별 가중치 파일 저장
+#     os.makedirs("AI/weight_pt/personal", exist_ok=True)
+#     model_path = f"AI/weight_pt/personal/personalized_{user_id}.pt"
+#     torch.save(model.state_dict(), model_path)
+#     print("✅ 전이학습 완료 및 모델 저장됨! -> {model_path}")
+#     return model_path
+
+
+def train_transferModel(df: pd.DataFrame, user_id: str):
+    print("\n[train_transferModel] ====================================")
+    print(f"[train_transferModel] user_id   = {user_id}")
+    print(f"[train_transferModel] df.shape  = {df.shape}")
+    print(f"[train_transferModel] df.columns= {list(df.columns)}")
+
     lr = 1e-3
     epochs = 50
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
+    # 🔹 입력/타겟 텐서 만들기
     X_train = torch.tensor(df[[
         "Bed_sin", "Bed_cos", "Wake_sin", "Wake_cos", "Weekday",
         "Sleep_duration", "Irregular_flag", "Awakenings",
-        "Sleep_date_sin", "Sleep_date_cos", "Wake_date_sin","Wake_date_cos"
+        "Sleep_date_sin", "Sleep_date_cos", "Wake_date_sin", "Wake_date_cos"
     ]].values, dtype=torch.float32).unsqueeze(0).to(device)
-    Y_train = torch.tensor(df["alarm_strength"].values-1, dtype=torch.long).to(device)
+
+    Y_train = torch.tensor(df["strength"].values - 1, dtype=torch.long).to(device)
     snooze = torch.tensor(df["snooze_count"].values, dtype=torch.float32).to(device)
 
+    # 🔹 사전학습 가중치 로드
     model = transferModel(transfer_input_size=12).to(device)
     ckpt = torch.load("AI/weight_pt/pretrained_model_full.pt", map_location=device)
     model.load_state_dict(ckpt)
-    # 🔹 FeatureExtractor 고정 (Freeze)
-    for param in model.feature_extractor.parameters():
-        param.requires_grad = False
-    for param in model.lstm.parameters():
-        param.requires_grad = True
-    for param in model.fc_out.parameters():
-        param.requires_grad = True
 
-    class_counts = Counter(df["alarm_strength"].values - 1)
-    print("클래스 카운트:", class_counts)
+    # 🔹 FeatureExtractor는 freeze, LSTM/FC만 학습
+    for p in model.feature_extractor.parameters():
+        p.requires_grad = False
+    for p in model.lstm.parameters():
+        p.requires_grad = True
+    for p in model.fc_out.parameters():
+        p.requires_grad = True
+
+    # 🔹 클래스 비율 / 가중치
+    class_counts = Counter(df["strength"].values - 1)
+    print(f"[train_transferModel] class_counts = {class_counts}")
     total = sum(class_counts.values())
     ratios = {c: count / total for c, count in class_counts.items()}
     ratio_threshold = 0.05
 
-    mask = df["alarm_strength"].apply(lambda c: ratios[c-1] >= ratio_threshold).values
+    mask = df["strength"].apply(lambda c: ratios.get(c-1, 0) >= ratio_threshold).values
     mask = torch.tensor(mask, dtype=torch.bool).to(device)
 
     class_weights = []
     for c in range(4):
         r = ratios.get(c, 0)
-        if ratios.get(c, 0) < ratio_threshold or class_counts.get(c, 0) == 0:
-            class_weights.append(0.5)  # fine-tuning 영향 제거
+        if r < ratio_threshold or class_counts.get(c, 0) == 0:
+            class_weights.append(0.5)
         else:
             class_weights.append(total / class_counts[c])
 
     class_weights = torch.tensor(class_weights, dtype=torch.float32).to(device)
+    print(f"[train_transferModel] class_weights = {class_weights}")
 
     criterion = nn.CrossEntropyLoss(weight=class_weights, reduction='none')
     optimizer = torch.optim.Adam([
-        {"params": model.lstm.parameters(), "lr": 1e-4},  # LSTM 아주 약하게
+        {"params": model.lstm.parameters(), "lr": 1e-4},
         {"params": model.fc_out.parameters(), "lr": 1e-3},
     ])
 
+    # 🔹 학습 루프
     for epoch in range(epochs):
         model.train()
         optimizer.zero_grad()
-        outputs = model(X_train)
-        outputs = outputs.squeeze(0)
+
+        outputs = model(X_train)         # (1, seq_len, 4)
+        outputs = outputs.squeeze(0)     # (seq_len, 4)
+
         loss = criterion(outputs, Y_train)
         loss = loss[mask]
 
@@ -90,10 +181,20 @@ def train_transferModel(df):
         if (epoch + 1) % 5 == 0:
             preds = torch.argmax(outputs, dim=1)
             acc = (preds[mask] == Y_train[mask]).float().mean()
-            print(f"Epoch [{epoch + 1}/{epochs}] | Loss: {weighted_loss.item():.4f} | Acc: {acc.item():.4f}")
+            print(f"[train_transferModel] Epoch [{epoch + 1}/{epochs}] "
+                  f"| Loss: {weighted_loss.item():.4f} | Acc: {acc.item():.4f}")
 
-    torch.save(model.state_dict(), "AI/weight_pt/personalized_model.pt")
-    print("✅ 전이학습 완료 및 모델 저장됨!")
+    # 🔹 유저별 가중치 저장
+    os.makedirs("AI/weight_pt/personal", exist_ok=True)
+    model_path = f"AI/weight_pt/personal/personalized_{user_id}.pt"
+    abs_path = os.path.abspath(model_path)
+    torch.save(model.state_dict(), model_path)
+
+    print(f"[train_transferModel] saved to: {abs_path}")
+    print(f"[train_transferModel] exists? {os.path.exists(model_path)}")
+    print("[train_transferModel] ====================================\n")
+
+    return model_path
 
 #예측 + 보정 단계
 def predict_with_correction(one_day_data, recent_success_mean):

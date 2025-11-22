@@ -163,6 +163,7 @@ class FirestoreService {
     required String gender,
     required int age,
     required int awakenings,
+    required int irregularFlag,
   }) async {
     final user = FirebaseAuth.instance.currentUser!;
     if(user==null){
@@ -180,6 +181,7 @@ class FirestoreService {
       'gender': gender,
       'age': age,
       'awakenings': awakenings,
+      'Irregular_flag': irregularFlag,
       'time_at': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
   }

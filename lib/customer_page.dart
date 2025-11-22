@@ -307,6 +307,9 @@ class _CustomerpageState extends State<Customerpage> {
                                 return;
                               }
 
+                              final int irregularFlag = (sleepPattern == '불규칙적') ? 1 : 0;
+
+
                               final service = FirestoreService();
 
                               try {
@@ -317,6 +320,7 @@ class _CustomerpageState extends State<Customerpage> {
                                   // sleepPattern도 Firestore에 저장하려면
                                   // saveUserInformation에 sleepPattern 파라미터 추가해서 같이 넘겨줘야 함
                                   awakenings: awakenings,
+                                  irregularFlag: irregularFlag,
                                 );
 
                                 if (!context.mounted) return;
