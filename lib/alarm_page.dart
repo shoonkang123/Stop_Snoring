@@ -25,7 +25,7 @@ class Alarm {
 }
 
 class AlarmPage extends StatefulWidget {
-  final int? alarm_strength;   // 1~4 강도 (볼륨용, 선택사항)
+  final int? alarm_strength;   // ✅ 1~5 강도 (볼륨 + 음악 선택용)
 
   const AlarmPage({
     super.key,
@@ -44,13 +44,41 @@ class AlarmPageState extends State<AlarmPage> {
   bool _isEditing = false;
   final Set<int> selectedIndexes = {};
 
-  /// 강도(1~4)에 따라 볼륨(0.0~1.0) 결정
+  ///  강도(1~5)에 따라 볼륨(0.0~1.0) 결정
   double get _volumeFromStrength {
-    final s = widget.alarm_strength ?? 3;
-    if (s <= 1) return 0.4;
-    if (s == 2) return 0.6;
-    if (s == 3) return 0.8;
-    return 1.0;
+    int s = widget.alarm_strength ?? 3; // 기본값 3
+    if (s < 1) s = 1;
+    if (s > 5) s = 5;
+
+    switch (s) {
+      case 1:
+        return 0.4; // 40%
+      case 2:
+        return 0.6; // 60%
+      case 3:
+        return 0.8; // 80%
+      case 4:
+      case 5:
+        return 1.0; // 100%
+      default:
+        return 0.8;
+    }
+  }
+
+  ///  강도(1~5)에 따라 재생할 음악 파일 결정
+  String get _audioFromStrength {
+    int s = widget.alarm_strength ?? 3;
+    if (s < 1) s = 1;
+    if (s > 5) s = 5;
+
+    if (s == 4) {
+      return 'assets/siren4.mp3';
+    } else if (s == 5) {
+      return 'assets/siren5.mp3';
+    } else {
+      // 1, 2, 3
+      return 'assets/good_morning1.mp3';
+    }
   }
 
   @override
@@ -139,10 +167,10 @@ class AlarmPageState extends State<AlarmPage> {
     final settings = alarm.AlarmSettings(
       id: alarmId,
       dateTime: nextDateTime,
-      assetAudioPath: 'assets/good_morning1.mp3',
+      assetAudioPath: _audioFromStrength, // ✅ 강도에 따른 음악 파일
       loopAudio: true,
       vibrate: alarmModel.vibrate,
-      volume: _volumeFromStrength,
+      volume: _volumeFromStrength,        // ✅ 강도에 따른 볼륨
       fadeDuration: 0.0,
       notificationTitle:
       alarmModel.label.isEmpty ? '알람' : alarmModel.label,
@@ -413,10 +441,11 @@ class AlarmPageState extends State<AlarmPage> {
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: Colors.grey.shade300,
                                   foregroundColor: Colors.black,
-                                  padding:
-                                  const EdgeInsets.symmetric(vertical: 14),
+                                  padding: const EdgeInsets.symmetric(
+                                      vertical: 14),
                                   shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12)),
+                                      borderRadius:
+                                      BorderRadius.circular(12)),
                                 ),
                                 child: const Text(
                                   "취소",
@@ -445,8 +474,7 @@ class AlarmPageState extends State<AlarmPage> {
                                     "hour": hour24,
                                     "minute": minute,
                                     "days": selectedDays,
-                                    "label":
-                                    labelController.text.trim(),
+                                    "label": labelController.text.trim(),
                                     "vibrate": vibrate,
                                     "isEnabled":
                                     existingAlarm?.isEnabled ?? true,
@@ -457,8 +485,7 @@ class AlarmPageState extends State<AlarmPage> {
                                     await FirestoreService().updateAlarm(
                                         userId, alarmId, alarmData);
                                   } else {
-                                    // 새 알람 저장(반환값이 ID일 가능성 높지만,
-                                    // 여기서는 일단 저장만 하고 다시 전체 로드해서 ID 채움)
+                                    // 새 알람 저장
                                     await FirestoreService()
                                         .saveAlarm(userId, alarmData);
                                   }
@@ -469,10 +496,11 @@ class AlarmPageState extends State<AlarmPage> {
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: Colors.amber,
                                   foregroundColor: Colors.black,
-                                  padding:
-                                  const EdgeInsets.symmetric(vertical: 14),
+                                  padding: const EdgeInsets.symmetric(
+                                      vertical: 14),
                                   shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12)),
+                                      borderRadius:
+                                      BorderRadius.circular(12)),
                                 ),
                                 child: const Text(
                                   "저장",
@@ -748,8 +776,7 @@ class AlarmPageState extends State<AlarmPage> {
                             setState(() => alarm.isEnabled = v);
 
                             // Firestore 업데이트
-                            final user =
-                            FirebaseAuth.instance.currentUser!;
+                            final user = FirebaseAuth.instance.currentUser!;
                             final String userId =
                                 user.displayName ?? user.uid;
                             await FirestoreService().updateAlarm(
@@ -767,16 +794,16 @@ class AlarmPageState extends State<AlarmPage> {
 
                             setState(() {});
                           },
-                          thumbColor:
-                          WidgetStateProperty.resolveWith((states) =>
-                          states.contains(WidgetState.selected)
-                              ? Colors.amber
-                              : Colors.grey),
-                          trackColor:
-                          WidgetStateProperty.resolveWith((states) =>
-                          states.contains(WidgetState.selected)
-                              ? Colors.amber.withAlpha(128)
-                              : Colors.grey.withAlpha(128)),
+                          thumbColor: WidgetStateProperty.resolveWith(
+                                  (states) => states
+                                  .contains(WidgetState.selected)
+                                  ? Colors.amber
+                                  : Colors.grey),
+                          trackColor: WidgetStateProperty.resolveWith(
+                                  (states) => states
+                                  .contains(WidgetState.selected)
+                                  ? Colors.amber.withAlpha(128)
+                                  : Colors.grey.withAlpha(128)),
                         ),
                       ),
                     );

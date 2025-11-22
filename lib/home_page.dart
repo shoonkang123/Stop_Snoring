@@ -228,16 +228,21 @@ class HomePage extends StatelessWidget {
                     final int strength = (data["strength"] as num).toInt();
                     // Snackbar + 화면이 아직 살아있는지 체크
                     if (!context.mounted) return;
+
+                    // 테스트용 강도 (1~5 바꿔가면서 테스트)
+                    //const int testStrength = 5;
+
                     // 예측 결과 출력
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(content: Text("AI 예측 알람 강도: $strength")),
+                      //실제 값 $strength  //테스트 값 $testStrength
                     );
                     //AlarmPage로 강도 전달
                     Navigator.push(
                       context,
                       MaterialPageRoute(
                         builder: (context) => AlarmPage(
-                          alarm_strength: strength,
+                          alarm_strength: strength, //실제 값 strength  //테스트 값 testStrength
                           //******모델의 출력 알람 강도를 사용하고 싶으면 생성자 생성 *******
                         ),
                       ),
