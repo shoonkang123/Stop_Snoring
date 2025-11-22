@@ -261,21 +261,30 @@ class HomePage extends StatelessWidget {
                 }
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.amber[400],
-                shape: const CircleBorder(
-                  side: BorderSide(width: 4, color: Colors.black),
+                backgroundColor: Colors.amber.shade400,          // 버튼 색
+                elevation: 6,                                    // 떠 있는 느낌
+                shadowColor: Colors.black.withAlpha(200),     // 그림자
+                shape: CircleBorder(
+                  side: BorderSide(
+                    width: 4,
+                    color: Colors.amber.shade400,
+                  ),
                 ),
                 padding: const EdgeInsets.all(40),
               ),
               child: const Text(
                 'Start',
                 style: TextStyle(
-                  fontSize: 20,
+                  fontSize: 22,
                   fontWeight: FontWeight.bold,
                   color: Colors.black,
+                  letterSpacing: 1.5,
                 ),
               ),
             ),
+
+
+
           ],
         ),
       ),
