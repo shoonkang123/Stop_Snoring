@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:permission_handler/permission_handler.dart'; // 알림 권한 요청용
+import 'package:alarm/alarm.dart'; // 알람 플러그인
 
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
@@ -10,12 +11,33 @@ import 'alarm_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+/// 🔑 알람 울릴 때 어디서든 화면 띄우기 위한 전역 navigatorKey
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
 
-  // 안드로이드 알림 권한 요청
+  // 🔔 alarm 플러그인 초기화 (runApp 전에)
+  await Alarm.init();
+
+  // 🔔 안드로이드 알림 권한 요청
   await _requestNotificationPermission();
+
+  // 🔔 알람이 실제로 울릴 때마다 호출되는 스트림 리스너
+  Alarm.ringStream.stream.listen((alarmSettings) {
+    final navigator = navigatorKey.currentState;
+    if (navigator == null) return;
+
+    // 알람 울리면 AlarmScreen을 전체화면으로 띄우기 (기존 화면 위에만 올림)
+    navigator.push(
+      MaterialPageRoute(
+        builder: (_) => const AlarmScreen(),
+        fullscreenDialog: true, // 선택사항: 위에서 슬라이드되는 느낌 (iOS)
+      ),
+    );
+  });
+
 
   runApp(const MyApp());
 }
@@ -40,7 +62,8 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      debugShowCheckedModeBanner: false, // DEBUG 리본 제거
+      navigatorKey: navigatorKey,          // 🔑 AlarmScreen 띄우는 용도
+      debugShowCheckedModeBanner: false,  // DEBUG 리본 제거
 
       // ✅ 한국어 로케일 적용
       locale: const Locale('ko', 'KR'),
@@ -56,7 +79,7 @@ class MyApp extends StatelessWidget {
       ),
       home: const LoginPage(),
       // const LoginPage(),  // 로그인 페이지로 시작
-      // const AlarmScreen(), // 알람 울렸을 때 페이지로 시작
+      // const AlarmScreen(), // (테스트용) 알람 화면으로 바로 시작
 
       routes: {
         '/alarm': (context) => const AlarmScreen(),

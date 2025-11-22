@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:alarm/alarm.dart' as alarm; // 🔔 알람 정지용
 
 class AlarmScreen extends StatefulWidget {
   const AlarmScreen({super.key});
@@ -92,7 +93,7 @@ class _AlarmScreenState extends State<AlarmScreen> {
               // 날짜/시간과 버튼 사이의 공간
               const Spacer(),
 
-              // 하단 버튼 블럭 (위로 조금 끌어올리기 위해 bottom padding 줄이고 Spacer 하나만 사용)
+              // 하단 버튼 블럭
               Padding(
                 padding: const EdgeInsets.only(bottom: 100.0),
                 child: Column(
@@ -103,7 +104,7 @@ class _AlarmScreenState extends State<AlarmScreen> {
                       width: 240,
                       child: ElevatedButton(
                         onPressed: () {
-                          // TODO: 알람 미루기 로직 추가
+                          // TODO: 알람 미루기(예: 5분 뒤 다시 울리기) 로직 추가
                         },
                         style: ElevatedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(
@@ -126,10 +127,15 @@ class _AlarmScreenState extends State<AlarmScreen> {
                     SizedBox(
                       width: 330,
                       child: ElevatedButton(
-                        onPressed: () {
-                          // TODO: 실제 알람 끄기(사운드 정지 등) 로직 추가
-                          Navigator.of(context).maybePop();
+                        onPressed: () async {
+                          // 🔔 현재 울리는 모든 알람 정지
+                          await alarm.Alarm.stopAll();
+
+                          if (mounted) {
+                            Navigator.of(context).pop(); // 화면 닫기
+                          }
                         },
+
                         style: ElevatedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 20,

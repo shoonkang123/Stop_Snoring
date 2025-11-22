@@ -1,17 +1,18 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:alarm/alarm.dart' as alarm; // 🔔 실제 기기 알람용
 import 'common_layout.dart';
 import 'firestore_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 /// 알람 데이터 모델
 class Alarm {
-  String? id;
-  TimeOfDay time; // 시간
-  bool isEnabled; // 알람 활/비성화
-  List<String> days; //요일
-  String label; // 알람 이름
-  bool vibrate; // 진동
+  String? id;          // Firestore 문서 ID
+  TimeOfDay time;      // 시간
+  bool isEnabled;      // 알람 활/비활성
+  List<String> days;   // 요일
+  String label;        // 알람 이름
+  bool vibrate;        // 진동
 
   Alarm({
     this.id,
@@ -24,7 +25,7 @@ class Alarm {
 }
 
 class AlarmPage extends StatefulWidget {
-  final int? alarm_strength;
+  final int? alarm_strength;   // 1~4 강도 (볼륨용, 선택사항)
 
   const AlarmPage({
     super.key,
@@ -36,11 +37,6 @@ class AlarmPage extends StatefulWidget {
 }
 
 class AlarmPageState extends State<AlarmPage> {
-  @override
-  void initState() {
-    super.initState();
-    _loadAlarmsFromFirestore();
-  }
   final List<Alarm> alarmList = []; // 설정한 알람
   final List<String> weekDays = ['월', '화', '수', '목', '금', '토', '일'];
 
@@ -48,34 +44,124 @@ class AlarmPageState extends State<AlarmPage> {
   bool _isEditing = false;
   final Set<int> selectedIndexes = {};
 
-  Future<void> _loadAlarmsFromFirestore() async {
-    final user = FirebaseAuth.instance.currentUser!;
-    final String userId = user.displayName!;
-    final dataList = await FirestoreService().loadAlarms(userId);
-
-    // Firestore에서 받은 데이터를 UI용 모델로 변환해서 alarmList에 넣기
-    setState(() {
-        alarmList.clear(); // 기존 로컬 알람 비우기
-
-        for (final data in dataList) {
-            alarmList.add(
-                Alarm(
-                    id: data["id"],
-                    time: TimeOfDay(
-                        hour: data["hour"],
-                        minute: data["minute"],
-                    ),
-                    isEnabled: data["isEnabled"] ?? true,
-                    label: data["label"] ?? "",
-                    vibrate: data["vibrate"] ?? true,
-                    days: List<String>.from(data["days"] ?? []),
-                ),
-            );
-        }
-    });
+  /// 강도(1~4)에 따라 볼륨(0.0~1.0) 결정
+  double get _volumeFromStrength {
+    final s = widget.alarm_strength ?? 3;
+    if (s <= 1) return 0.4;
+    if (s == 2) return 0.6;
+    if (s == 3) return 0.8;
+    return 1.0;
   }
 
-  /// 알람 추가·수정 바텀시트
+  @override
+  void initState() {
+    super.initState();
+    _loadAlarmsFromFirestore();
+  }
+
+  /// Firestore에서 알람 불러오고 → OS 알람과 동기화
+  Future<void> _loadAlarmsFromFirestore() async {
+    final user = FirebaseAuth.instance.currentUser!;
+    final String userId = user.displayName ?? user.uid;
+    final dataList = await FirestoreService().loadAlarms(userId);
+
+    final List<Alarm> loaded = [];
+
+    for (final data in dataList) {
+      loaded.add(
+        Alarm(
+          id: data["id"],
+          time: TimeOfDay(
+            hour: data["hour"],
+            minute: data["minute"],
+          ),
+          isEnabled: data["isEnabled"] ?? true,
+          label: data["label"] ?? "",
+          vibrate: data["vibrate"] ?? true,
+          days: List<String>.from(data["days"] ?? []),
+        ),
+      );
+    }
+
+    setState(() {
+      alarmList
+        ..clear()
+        ..addAll(loaded);
+    });
+
+    // 👉 Firestore 상태에 맞춰 실제 기기 알람도 설정/해제
+    for (final a in alarmList) {
+      if (a.isEnabled) {
+        await _scheduleDeviceAlarm(a);
+      } else {
+        await _cancelDeviceAlarm(a);
+      }
+    }
+  }
+
+  /// 실제 안드로이드/아이폰 알람 예약
+  Future<void> _scheduleDeviceAlarm(Alarm alarmModel) async {
+    if (alarmModel.id == null || !alarmModel.isEnabled) return;
+
+    final now = DateTime.now();
+    // 요일 설정 안 했으면 매일 울리게
+    final activeDays =
+    alarmModel.days.isEmpty ? List<String>.from(weekDays) : alarmModel.days;
+
+    DateTime? nextDateTime;
+
+    // 앞으로 7일 중 가장 가까운 울릴 시간 찾기
+    for (int add = 0; add < 7; add++) {
+      final date = now.add(Duration(days: add));
+      final dayKor = weekDays[date.weekday - 1];
+      if (!activeDays.contains(dayKor)) continue;
+
+      final candidate = DateTime(
+        date.year,
+        date.month,
+        date.day,
+        alarmModel.time.hour,
+        alarmModel.time.minute,
+      );
+
+      if (candidate.isAfter(now)) {
+        if (nextDateTime == null || candidate.isBefore(nextDateTime)) {
+          nextDateTime = candidate;
+        }
+      }
+    }
+
+    if (nextDateTime == null) return;
+
+    // alarm 패키지에 쓸 고유 ID (문자열 hash)
+    final int alarmId = alarmModel.id.hashCode & 0x7fffffff;
+
+    final settings = alarm.AlarmSettings(
+      id: alarmId,
+      dateTime: nextDateTime,
+      assetAudioPath: 'assets/good_morning1.mp3',
+      loopAudio: true,
+      vibrate: alarmModel.vibrate,
+      volume: _volumeFromStrength,
+      fadeDuration: 0.0,
+      notificationTitle:
+      alarmModel.label.isEmpty ? '알람' : alarmModel.label,
+      notificationBody: '일어날 시간입니다.',
+      enableNotificationOnKill: false,
+      androidFullScreenIntent: true,
+    );
+
+    await alarm.Alarm.set(alarmSettings: settings);
+  }
+
+  /// 예약된 기기 알람 취소
+  Future<void> _cancelDeviceAlarm(Alarm alarmModel) async {
+    if (alarmModel.id == null) return;
+    final int alarmId = alarmModel.id.hashCode & 0x7fffffff;
+    await alarm.Alarm.stop(alarmId);
+  }
+
+  /// 알람 추가·수정 바텀시트 (UI는 네 코드 그대로)
   Future<void> _showAddAlarmSheet({Alarm? existingAlarm, int? index}) async {
     int hour = existingAlarm?.time.hourOfPeriod ?? 7;
     int minute = existingAlarm?.time.minute ?? 0;
@@ -109,282 +195,301 @@ class AlarmPageState extends State<AlarmPage> {
                   left: 16,
                   right: 16,
                 ),
-                  child: SingleChildScrollView(
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(
-                        minHeight: MediaQuery.of(context).size.height * 0.65,
-                      ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Text(
-                      "알람 설정",
-                      style:
-                      TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                child: SingleChildScrollView(
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      minHeight: MediaQuery.of(context).size.height * 0.65,
                     ),
-                    const SizedBox(height: 16),
-
-                    /// 알람 이름
-                    TextField(
-                      controller: labelController,
-                      decoration: InputDecoration(
-                        labelText: "알람 이름",
-                        border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12)),
-                      ),
-                    ),
-
-                    const SizedBox(height: 20),
-
-                    /// 시간 Picker
-                    Stack(
-                      alignment: Alignment.center,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        Positioned(
-                          top: 70,
-                          left: 0,
-                          right: 0,
-                          child: Container(height: 1.2, color: Colors.black12),
+                        const Text(
+                          "알람 설정",
+                          style: TextStyle(
+                              fontSize: 20, fontWeight: FontWeight.bold),
                         ),
-                        Positioned(
-                          bottom: 70,
-                          left: 0,
-                          right: 0,
-                          child: Container(height: 1.2, color: Colors.black12),
-                        ),
-                        SizedBox(
-                          height: 180,
-                          child: Row(
-                            children: [
-                              /// AM / PM
-                              Expanded(
-                                child: CupertinoPicker(
-                                  itemExtent: 40,
-                                  scrollController:
-                                  FixedExtentScrollController(
-                                      initialItem: isAm ? 0 : 1),
-                                  onSelectedItemChanged: (i) =>
-                                      setDialogState(() => isAm = i == 0),
-                                  children: const [
-                                    Center(
-                                        child: Text("오전",
-                                            style: TextStyle(fontSize: 22))),
-                                    Center(
-                                        child: Text("오후",
-                                            style: TextStyle(fontSize: 22))),
-                                  ],
-                                ),
-                              ),
+                        const SizedBox(height: 16),
 
-                              /// Hour
-                              Expanded(
-                                child: CupertinoPicker.builder(
-                                  itemExtent: 40,
-                                  scrollController: hourController,
-                                  useMagnifier: true,
-                                  onSelectedItemChanged: (i) {
-                                    hour = (i % 12) + 1;
-                                    if (i < 10 || i > 1190) {
-                                      Future.microtask(() => hourController
-                                          .jumpToItem(600 + (i % 12)));
-                                    }
-                                  },
-                                  childCount: 1200,
-                                  itemBuilder: (_, i) {
-                                    return Center(
-                                      child: Text(
-                                        ((i % 12) + 1).toString(),
-                                        style:
-                                        const TextStyle(fontSize: 26),
-                                      ),
-                                    );
-                                  },
-                                ),
-                              ),
-
-                              const Text(":", style: TextStyle(fontSize: 26)),
-
-                              /// Minute
-                              Expanded(
-                                child: CupertinoPicker.builder(
-                                  itemExtent: 40,
-                                  scrollController: minuteController,
-                                  useMagnifier: true,
-                                  onSelectedItemChanged: (i) {
-                                    minute = i % 60;
-                                    if (i < 100 || i > 5900) {
-                                      Future.microtask(() => minuteController
-                                          .jumpToItem(3000 + (i % 60)));
-                                    }
-                                  },
-                                  childCount: 6000,
-                                  itemBuilder: (_, i) {
-                                    return Center(
-                                      child: Text(
-                                        (i % 60).toString().padLeft(2, '0'),
-                                        style:
-                                        const TextStyle(fontSize: 26),
-                                      ),
-                                    );
-                                  },
-                                ),
-                              ),
-                            ],
+                        /// 알람 이름
+                        TextField(
+                          controller: labelController,
+                          decoration: InputDecoration(
+                            labelText: "알람 이름",
+                            border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12)),
                           ),
                         ),
-                      ],
-                    ),
 
-                    const SizedBox(height: 16),
+                        const SizedBox(height: 20),
 
-                    /// 진동
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text('진동 사용', style: TextStyle(fontSize: 16)),
-                        Switch(
-                          value: vibrate,
-                          onChanged: (v) =>
-                              setDialogState(() => vibrate = v),
-                          thumbColor:
-                          WidgetStateProperty.resolveWith((states) {
-                            return states.contains(WidgetState.selected)
-                                ? Colors.amber
-                                : Colors.grey;
-                          }),
-                          trackColor:
-                          WidgetStateProperty.resolveWith((states) {
-                            return states.contains(WidgetState.selected)
-                                ? Colors.amber.withAlpha(120)
-                                : Colors.grey.withAlpha(120);
-                          }),
+                        /// 시간 Picker
+                        Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            Positioned(
+                              top: 70,
+                              left: 0,
+                              right: 0,
+                              child:
+                              Container(height: 1.2, color: Colors.black12),
+                            ),
+                            Positioned(
+                              bottom: 70,
+                              left: 0,
+                              right: 0,
+                              child:
+                              Container(height: 1.2, color: Colors.black12),
+                            ),
+                            SizedBox(
+                              height: 180,
+                              child: Row(
+                                children: [
+                                  /// AM / PM
+                                  Expanded(
+                                    child: CupertinoPicker(
+                                      itemExtent: 40,
+                                      scrollController:
+                                      FixedExtentScrollController(
+                                          initialItem: isAm ? 0 : 1),
+                                      onSelectedItemChanged: (i) =>
+                                          setDialogState(() => isAm = i == 0),
+                                      children: const [
+                                        Center(
+                                            child: Text("오전",
+                                                style:
+                                                TextStyle(fontSize: 22))),
+                                        Center(
+                                            child: Text("오후",
+                                                style:
+                                                TextStyle(fontSize: 22))),
+                                      ],
+                                    ),
+                                  ),
+
+                                  /// Hour
+                                  Expanded(
+                                    child: CupertinoPicker.builder(
+                                      itemExtent: 40,
+                                      scrollController: hourController,
+                                      useMagnifier: true,
+                                      onSelectedItemChanged: (i) {
+                                        hour = (i % 12) + 1;
+                                        if (i < 10 || i > 1190) {
+                                          Future.microtask(() =>
+                                              hourController.jumpToItem(
+                                                  600 + (i % 12)));
+                                        }
+                                      },
+                                      childCount: 1200,
+                                      itemBuilder: (_, i) {
+                                        return Center(
+                                          child: Text(
+                                            ((i % 12) + 1).toString(),
+                                            style:
+                                            const TextStyle(fontSize: 26),
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  ),
+
+                                  const Text(":",
+                                      style: TextStyle(fontSize: 26)),
+
+                                  /// Minute
+                                  Expanded(
+                                    child: CupertinoPicker.builder(
+                                      itemExtent: 40,
+                                      scrollController: minuteController,
+                                      useMagnifier: true,
+                                      onSelectedItemChanged: (i) {
+                                        minute = i % 60;
+                                        if (i < 100 || i > 5900) {
+                                          Future.microtask(() =>
+                                              minuteController.jumpToItem(
+                                                  3000 + (i % 60)));
+                                        }
+                                      },
+                                      childCount: 6000,
+                                      itemBuilder: (_, i) {
+                                        return Center(
+                                          child: Text(
+                                            (i % 60)
+                                                .toString()
+                                                .padLeft(2, '0'),
+                                            style:
+                                            const TextStyle(fontSize: 26),
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
 
-                    const SizedBox(height: 16),
+                        const SizedBox(height: 16),
 
-                    /// 요일 선택
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children: weekDays.map((day) {
-                        final selected = selectedDays.contains(day);
-                        return GestureDetector(
-                          onTap: () {
-                            setDialogState(() {
-                              selected
-                                  ? selectedDays.remove(day)
-                                  : selectedDays.add(day);
-                            });
-                          },
-                          child: AnimatedContainer(
-                            duration:
-                            const Duration(milliseconds: 200),
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: selected
-                                  ? Colors.amber[600]
-                                  : Colors.transparent,
-                              shape: BoxShape.circle,
-                              border: Border.all(
+                        /// 진동
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text('진동 사용',
+                                style: TextStyle(fontSize: 16)),
+                            Switch(
+                              value: vibrate,
+                              onChanged: (v) =>
+                                  setDialogState(() => vibrate = v),
+                              thumbColor:
+                              WidgetStateProperty.resolveWith((states) {
+                                return states.contains(WidgetState.selected)
+                                    ? Colors.amber
+                                    : Colors.grey;
+                              }),
+                              trackColor:
+                              WidgetStateProperty.resolveWith((states) {
+                                return states.contains(WidgetState.selected)
+                                    ? Colors.amber.withAlpha(120)
+                                    : Colors.grey.withAlpha(120);
+                              }),
+                            ),
+                          ],
+                        ),
+
+                        const SizedBox(height: 16),
+
+                        /// 요일 선택
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceAround,
+                          children: weekDays.map((day) {
+                            final selected = selectedDays.contains(day);
+                            return GestureDetector(
+                              onTap: () {
+                                setDialogState(() {
+                                  selected
+                                      ? selectedDays.remove(day)
+                                      : selectedDays.add(day);
+                                });
+                              },
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 200),
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
                                   color: selected
-                                      ? Colors.amber
-                                      : Colors.grey,
-                                  width: 1.5),
-                            ),
-                            child: Text(
-                              day,
-                              style: TextStyle(
-                                color: selected
-                                    ? Colors.white
-                                    : Colors.grey.shade600,
-                                fontWeight: FontWeight.bold,
+                                      ? Colors.amber[600]
+                                      : Colors.transparent,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                      color: selected
+                                          ? Colors.amber
+                                          : Colors.grey,
+                                      width: 1.5),
+                                ),
+                                child: Text(
+                                  day,
+                                  style: TextStyle(
+                                    color: selected
+                                        ? Colors.white
+                                        : Colors.grey.shade600,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
                               ),
-                            ),
-                          ),
-                        );
-                      }).toList(),
-                    ),
+                            );
+                          }).toList(),
+                        ),
 
-                    const SizedBox(height: 20),
+                        const SizedBox(height: 20),
 
-                    /// 저장 / 취소 버튼 (동일 디자인)
-                    Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
+                        /// 저장 / 취소 버튼
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
                             Expanded(
-                                child: ElevatedButton(
-                                    onPressed: () => Navigator.pop(context),
-                                    style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.grey.shade300,
-                                        foregroundColor: Colors.black,
-                                        padding: const EdgeInsets.symmetric(vertical: 14),
-                                        shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(12)),
-                                    ),
-                                    child: const Text(
-                                        "취소",
-                                        style: TextStyle(
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.bold),
-                                        ),
-                                    ),
+                              child: ElevatedButton(
+                                onPressed: () => Navigator.pop(context),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.grey.shade300,
+                                  foregroundColor: Colors.black,
+                                  padding:
+                                  const EdgeInsets.symmetric(vertical: 14),
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12)),
+                                ),
+                                child: const Text(
+                                  "취소",
+                                  style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold),
+                                ),
+                              ),
                             ),
                             const SizedBox(width: 12),
-
                             Expanded(
-                                child: ElevatedButton(
-                                    onPressed: () async {
-                                      final user = FirebaseAuth.instance.currentUser!;
-                                      final String userId = user.displayName!;
-                                      final hour24 = isAm ? hour % 12 : (hour % 12) + 12;
+                              child: ElevatedButton(
+                                onPressed: () async {
+                                  final user =
+                                  FirebaseAuth.instance.currentUser!;
+                                  final String userId =
+                                      user.displayName ?? user.uid;
+                                  final hour24 =
+                                  isAm ? hour % 12 : (hour % 12) + 12;
 
-                                      if (selectedDays.isEmpty) {
-                                        selectedDays = List.from(weekDays);
-                                      }
+                                  if (selectedDays.isEmpty) {
+                                    selectedDays = List.from(weekDays);
+                                  }
 
-                                      final alarmData = {
-                                        "hour": hour24,
-                                        "minute": minute,
-                                        "days": selectedDays,
-                                        "label": labelController.text.trim(),
-                                        "vibrate": vibrate,
-                                        "isEnabled": existingAlarm?.isEnabled ?? true,
-                                      };
+                                  final alarmData = {
+                                    "hour": hour24,
+                                    "minute": minute,
+                                    "days": selectedDays,
+                                    "label":
+                                    labelController.text.trim(),
+                                    "vibrate": vibrate,
+                                    "isEnabled":
+                                    existingAlarm?.isEnabled ?? true,
+                                  };
 
-                                      if (index != null) {
-                                        final alarmId = alarmList[index].id!;
-                                        await FirestoreService().updateAlarm(userId, alarmId, alarmData);
-                                      } else {
-                                        await FirestoreService().saveAlarm(userId, alarmData);
-                                      }
-                                      await _loadAlarmsFromFirestore();
-                                      Navigator.pop(context);
-                                    },
+                                  if (index != null) {
+                                    final alarmId = alarmList[index].id!;
+                                    await FirestoreService().updateAlarm(
+                                        userId, alarmId, alarmData);
+                                  } else {
+                                    // 새 알람 저장(반환값이 ID일 가능성 높지만,
+                                    // 여기서는 일단 저장만 하고 다시 전체 로드해서 ID 채움)
+                                    await FirestoreService()
+                                        .saveAlarm(userId, alarmData);
+                                  }
 
-                                    style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.amber,
-                                        foregroundColor: Colors.black,
-                                        padding: const EdgeInsets.symmetric(vertical: 14),
-                                        shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(12)),
-                                    ),
-                                    child: const Text(
-                                        "저장",
-                                        style: TextStyle(
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.bold),
-                                    ),
+                                  await _loadAlarmsFromFirestore();
+                                  Navigator.pop(context);
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.amber,
+                                  foregroundColor: Colors.black,
+                                  padding:
+                                  const EdgeInsets.symmetric(vertical: 14),
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12)),
                                 ),
+                                child: const Text(
+                                  "저장",
+                                  style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold),
+                                ),
+                              ),
                             ),
-                        ],
+                          ],
+                        ),
+                        const SizedBox(height: 20),
+                      ],
                     ),
-                    const SizedBox(height: 20),
-                  ],
+                  ),
                 ),
               ),
-                  )
-              )
             );
           },
         );
@@ -392,9 +497,7 @@ class AlarmPageState extends State<AlarmPage> {
     );
   }
 
-  /// 다음 울릴 알람 계산
-  /// 다음 울릴 알람 계산 (요일 포함)
-  /// 다음 울릴 알람 계산 (요일 + 'n일 후'까지 표시)
+  /// 다음 울릴 알람 계산 (요일 + 'n일 후' + 1분 이내 표현까지)
   String? getNextAlarmText() {
     // 켜져 있는 알람만 가져오기
     final enabled = alarmList.where((a) => a.isEnabled).toList();
@@ -402,7 +505,7 @@ class AlarmPageState extends State<AlarmPage> {
 
     final now = DateTime.now();
 
-    int? minDiff; // 가장 가까운 알람까지 남은 시간(분)
+    int? minDiffSeconds; // 가장 가까운 알람까지 남은 시간(초)
 
     final Map<String, int> weekdayIndex = {
       '월': DateTime.monday,
@@ -428,7 +531,7 @@ class AlarmPageState extends State<AlarmPage> {
           dayDiff += 7;
         }
 
-        final DateTime candidate = DateTime(
+        DateTime candidate = DateTime(
           now.year,
           now.month,
           now.day,
@@ -436,25 +539,29 @@ class AlarmPageState extends State<AlarmPage> {
           alarm.time.minute,
         ).add(Duration(days: dayDiff));
 
-        int diffMinutes = candidate.difference(now).inMinutes;
+        Duration diff = candidate.difference(now);
 
         // 오늘 이미 지난 시간이면 다음 주 같은 시간으로
-        if (diffMinutes <= 0) {
-          diffMinutes += 7 * 24 * 60;
+        if (diff.inSeconds <= 0) {
+          diff = diff + const Duration(days: 7);
         }
 
-        if (minDiff == null || diffMinutes < minDiff!) {
-          minDiff = diffMinutes;
+        final int diffSeconds = diff.inSeconds;
+
+        if (minDiffSeconds == null || diffSeconds < minDiffSeconds!) {
+          minDiffSeconds = diffSeconds;
         }
       }
     }
 
-    if (minDiff != null) {
-      final int totalMinutes = minDiff!;
-      final int days = totalMinutes ~/ (24 * 60);       // 며칠 후인지
-      final int remainMinutes = totalMinutes % (24 * 60);
-      final int hours = remainMinutes ~/ 60;            // 남은 시간
-      final int minutes = remainMinutes % 60;           // 남은 분
+    if (minDiffSeconds != null) {
+      final int totalSeconds = minDiffSeconds!;
+      final int days = totalSeconds ~/ (24 * 60 * 60); // 며칠 후인지
+      final int afterDays = totalSeconds % (24 * 60 * 60);
+      final int hours = afterDays ~/ 3600;
+      final int afterHours = afterDays % 3600;
+      final int minutes = afterHours ~/ 60;
+      final int seconds = afterHours % 60;
 
       // ✅ 1일 이상 남았을 때
       if (days > 0) {
@@ -465,21 +572,33 @@ class AlarmPageState extends State<AlarmPage> {
         } else if (minutes > 0) {
           return "${days}일 ${minutes}분 후에 울려요";
         } else {
-          // 정확히 n일 뒤 (예: 48시간 딱)
+          // 정확히 n일 뒤 (예: 24시간, 48시간 딱 맞을 때)
           return "${days}일 후에 울려요";
         }
       }
 
-      // ✅ 하루 이내일 때(기존처럼 시간/분만 표시)
-      if (hours > 0 && minutes > 0) return "$hours시간 $minutes분 후에 울려요";
-      if (hours > 0) return "$hours시간 후에 울려요";
-      return "$minutes분 후에 울려요";
+      // ✅ 하루 이내
+      if (hours > 0) {
+        if (minutes > 0) {
+          return "${hours}시간 ${minutes}분 후에 울려요";
+        } else {
+          return "${hours}시간 후에 울려요";
+        }
+      }
+
+      // ✅ 1시간 이내
+      if (minutes > 0) {
+        return "${minutes}분 후에 울려요";
+      }
+
+      // ✅ 1분 미만
+      if (seconds > 0) {
+        return "1분 이내에 울려요";
+      }
     }
 
     return null;
   }
-
-
 
   @override
   Widget build(BuildContext context) {
@@ -497,13 +616,13 @@ class AlarmPageState extends State<AlarmPage> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      getNextAlarmText() ?? "등록된 알람이 없어요.",
-                      style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600),
+                    Expanded(
+                      child: Text(
+                        getNextAlarmText() ?? "등록된 알람이 없어요.",
+                        style: const TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.w600),
+                      ),
                     ),
-
                     IconButton(
                       icon: Icon(
                         _isEditing ? Icons.close : Icons.delete,
@@ -539,8 +658,7 @@ class AlarmPageState extends State<AlarmPage> {
                       elevation: 3,
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(14)),
-                      margin:
-                      const EdgeInsets.symmetric(vertical: 10),
+                      margin: const EdgeInsets.symmetric(vertical: 10),
                       child: ListTile(
                         onTap: () {
                           if (_isEditing) {
@@ -559,8 +677,7 @@ class AlarmPageState extends State<AlarmPage> {
                             color: Colors.black87),
 
                         title: Column(
-                          crossAxisAlignment:
-                          CrossAxisAlignment.start,
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             if (alarm.label.isNotEmpty)
                               Text(
@@ -595,12 +712,10 @@ class AlarmPageState extends State<AlarmPage> {
                         ),
                         subtitle: Row(
                           children: weekDays.map((day) {
-                            final isSelected =
-                            alarm.days.contains(day);
+                            final isSelected = alarm.days.contains(day);
                             return Padding(
                               padding:
-                              const EdgeInsets.symmetric(
-                                  horizontal: 4),
+                              const EdgeInsets.symmetric(horizontal: 4),
                               child: Text(
                                 day,
                                 style: TextStyle(
@@ -629,30 +744,39 @@ class AlarmPageState extends State<AlarmPage> {
                             : Switch(
                           value: alarm.isEnabled,
                           onChanged: (v) async {
-                            //로컬 UI 업데이트
+                            // 로컬 UI 업데이트
                             setState(() => alarm.isEnabled = v);
-                            // firestore 업데이트
-                            final user = FirebaseAuth.instance.currentUser!;
-                            final String userId = user.displayName!;
+
+                            // Firestore 업데이트
+                            final user =
+                            FirebaseAuth.instance.currentUser!;
+                            final String userId =
+                                user.displayName ?? user.uid;
                             await FirestoreService().updateAlarm(
-                                userId,
-                                alarm.id!,            // Firestore 문서 ID
-                                {"isEnabled": v},
+                              userId,
+                              alarm.id!, // Firestore 문서 ID
+                              {"isEnabled": v},
                             );
+
+                            // 실제 기기 알람 설정/해제
+                            if (v) {
+                              await _scheduleDeviceAlarm(alarm);
+                            } else {
+                              await _cancelDeviceAlarm(alarm);
+                            }
+
+                            setState(() {});
                           },
-                          thumbColor: WidgetStateProperty
-                              .resolveWith((states) =>
-                          states.contains(
-                              WidgetState.selected)
+                          thumbColor:
+                          WidgetStateProperty.resolveWith((states) =>
+                          states.contains(WidgetState.selected)
                               ? Colors.amber
                               : Colors.grey),
-                          trackColor: WidgetStateProperty
-                              .resolveWith((states) =>
-                          states.contains(
-                              WidgetState.selected)
+                          trackColor:
+                          WidgetStateProperty.resolveWith((states) =>
+                          states.contains(WidgetState.selected)
                               ? Colors.amber.withAlpha(128)
-                              : Colors.grey
-                              .withAlpha(128)),
+                              : Colors.grey.withAlpha(128)),
                         ),
                       ),
                     );
@@ -671,16 +795,20 @@ class AlarmPageState extends State<AlarmPage> {
               child: ElevatedButton(
                 onPressed: () async {
                   final user = FirebaseAuth.instance.currentUser!;
-                  final String userId = user.displayName!;
-                    final toDelete = selectedIndexes.toList()
-                        ..sort((a, b) => b.compareTo(a));
-                    // 1) Firestore 삭제
-                    for (final idx in toDelete) {
-                        final alarm = alarmList[idx];
-                        if (alarm.id != null) {
-                            await FirestoreService().deleteAlarm(userId, alarm.id!);
-                        }
+                  final String userId = user.displayName ?? user.uid;
+                  final toDelete = selectedIndexes.toList()
+                    ..sort((a, b) => b.compareTo(a));
+
+                  // 1) Firestore 삭제 + OS 알람 취소
+                  for (final idx in toDelete) {
+                    final alarm = alarmList[idx];
+                    if (alarm.id != null) {
+                      await FirestoreService()
+                          .deleteAlarm(userId, alarm.id!);
+                      await _cancelDeviceAlarm(alarm);
                     }
+                  }
+
                   setState(() {
                     for (final idx in toDelete) {
                       alarmList.removeAt(idx);
@@ -703,9 +831,8 @@ class AlarmPageState extends State<AlarmPage> {
                 ),
                 child: const Text(
                   "선택한 알람 삭제",
-                  style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold),
+                  style:
+                  TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
               ),
             ),
