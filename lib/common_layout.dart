@@ -33,7 +33,7 @@ class CommonLayout extends StatelessWidget {
             leading: Padding(
               padding: const EdgeInsets.only(left: 10),
               child: Image.asset(
-                'assets/MoonIcon.png',
+                'assets/app_title_icon.png',
                 width: 40,
                 height: 40,
                 fit: BoxFit.contain,

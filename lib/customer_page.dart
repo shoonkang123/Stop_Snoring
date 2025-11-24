@@ -37,7 +37,27 @@ class _CustomerpageState extends State<Customerpage> {
             child: Column(
               children: [
                 const SizedBox(height: 10),
-                SizedBox(height: 70, child: Image.asset('assets/Title.png')),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Image.asset(
+                      'assets/app_title_icon.png',
+                      height: 64,
+                    ),
+                    const SizedBox(width: 6),
+                    const Text(
+                      "AI ALARM",
+                      style: TextStyle(
+                        fontSize: 26,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF55506B),
+                        letterSpacing: 1.0,
+                        height: 1.1,
+                      ),
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 30),
                 Card(
                   shape: RoundedRectangleBorder(
