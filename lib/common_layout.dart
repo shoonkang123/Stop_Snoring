@@ -33,7 +33,7 @@ class CommonLayout extends StatelessWidget {
             leading: Padding(
               padding: const EdgeInsets.only(left: 10),
               child: Image.asset(
-                'assets/MoonIcon.png',
+                'assets/app_title_icon.png',
                 width: 40,
                 height: 40,
                 fit: BoxFit.contain,
@@ -56,13 +56,7 @@ class CommonLayout extends StatelessWidget {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => MenuPage(
-                        name: '김승욱',      // TODO: Firebase 값
-                        age: 24,             // TODO
-                        gender: '남자',      // TODO
-                        avgBedTime: '23:30', // TODO
-                        avgWakeTime: '07:30',// TODO
-                      ),
+                      builder: (_) => const MenuPage(),
                     ),
                   );
                 },
@@ -103,7 +97,8 @@ class CommonLayout extends StatelessWidget {
               context,
               MaterialPageRoute(builder: (_) => const AlarmPage()),
             );
-          } else if (i == 1) {
+          }
+          else if (i == 1) {
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(builder: (_) => const HomePage()),

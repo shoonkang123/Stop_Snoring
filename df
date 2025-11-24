@@ -1,0 +1,24 @@
+[33mcc04f63[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmaster[m[33m, [m[1;31morigin/master[m[33m, [m[1;31morigin/HEAD[m[33m)[m mk_csv파일추가
+[33mc9c1d1e[m fastAPI서버 코드 올림
+[33m033ac55[m 목표 수면 시간 기능 추가
+[33maf5d0e3[m 알람 패키지 추가
+[33m1cd926f[m 주석 추가
+[33me6dfe0e[m 1. alarm_page, home_page 상, 하단 레이아웃 common_layout.dart에서 한번에 관리
+[33m1e0634c[m 커밋 테스트
+[33m277115c[m[33m ([m[1;31morigin/AI[m[33m, [m[1;32mAI[m[33m)[m 1. 스누즈 추가 2. 알람 울리게 추가 (db에 알람 저장 안되서 다른 탭 가면 데이터 날아감)
+[33m15d69b9[m 알람 리스트 눌렀을 때 수정할 수 있게 수정
+[33m6cc818a[m 알림 설정에 진동 기능 추가
+[33m54dc153[m Merge pull request #1 from shoonkang123/firebase
+[33m37ee5c2[m[33m ([m[1;31morigin/firebase[m[33m)[m 플랫폼에 맞는 firebase 연결정보 집합(CLI에서 자동생성)
+[33m5a49228[m 앱 사용전 firebase 초기화(firebase_core) firebase_core 모듈의 플랫폼별 공통 인터페이스 제공(firebase_core_platform_interface) web환경에서 firebase 초기화 및 연결(firebase_core_web)
+[33m49cbacb[m Firebase 사용을 위한 firebase_core: 선언
+[33m4a4c637[m 1. 슬라이드 삭제 (좌) 기능 추가 2. 여러 개 빠른 삭제 기능 추가
+[33m8901209[m 알람 이름 설정 기능 추가
+[33m2da3ddb[m 1. 요일 설정 안 하면 자동으로 모든 요일 활성화
+[33ma62ea97[m 나이 오류 경고 메시지 출력 방식 변경
+[33m35a4f8d[m 나이 1~150 정수로만 입력 받고 범위 벗어나면 입력값 초기화 후 '나이는 1세 이상 150세 이하만 입력 가능합니다' 경고문 출력
+[33m5625411[m 1. 사용자 정보 입력 칸 한글로 변경 2. 수면 중 깨는 횟수 0~4로 제한
+[33mddb4652[m 알림 활성화 버튼 색 코드가 구버전이라 신버전으로 수정
+[33m8cf8799[m gender '남', '여' 둘 중 하나만 선택 가능하게 수정
+[33m5a337da[m 이메일 입력에 '@' 필수로 들어가야 넘어갈 수 있음
+[33m90d08d4[m 프로젝트 모든 파일 업로드

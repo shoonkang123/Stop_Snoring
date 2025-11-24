@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'customer_page.dart';
+import 'firestore_service.dart';
 
 class SignUpPage extends StatelessWidget {
   // 각 입력 필드(TextField)의 값을 가져오기 위한 컨트롤러 선언
@@ -24,10 +25,26 @@ class SignUpPage extends StatelessWidget {
               children: [
                 SizedBox(height: 10), // 위쪽 여백
 
-                // 로고 이미지
-                SizedBox(
-                  height: 70,
-                  child: Image.asset('assets/Title.png'),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Image.asset(
+                      'assets/app_title_icon.png',
+                      height: 64,
+                    ),
+                    const SizedBox(width: 6),
+                    const Text(
+                      "AI ALARM",
+                      style: TextStyle(
+                        fontSize: 26,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF55506B),
+                        letterSpacing: 1.0,
+                        height: 1.1,
+                      ),
+                    ),
+                  ],
                 ),
 
                 SizedBox(height: 40), // 타이틀 아래 여백
@@ -46,7 +63,7 @@ class SignUpPage extends StatelessWidget {
                         TextField(
                           controller: idController, // 입력값 제어
                           decoration: InputDecoration(
-                            labelText: 'ID', // 필드에 레이블 텍스트
+                            labelText: '아이디', // 필드에 레이블 텍스트
                             border: OutlineInputBorder( // 기본 테두리 스타일
                               borderRadius: BorderRadius.circular(12),
                             ),
@@ -66,7 +83,7 @@ class SignUpPage extends StatelessWidget {
                           controller: emailController,
                           keyboardType: TextInputType.emailAddress, // 이메일 키보드
                           decoration: InputDecoration(
-                            labelText: 'Email',
+                            labelText: '이메일',
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
@@ -86,7 +103,7 @@ class SignUpPage extends StatelessWidget {
                           controller: passwordController,
                           obscureText: true, // 비밀번호 숨김 처리 (●●●●)
                           decoration: InputDecoration(
-                            labelText: 'Password',
+                            labelText: '비밀번호',
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
@@ -106,7 +123,7 @@ class SignUpPage extends StatelessWidget {
                           controller: confirmPasswordController,
                           obscureText: true,
                           decoration: InputDecoration(
-                            labelText: 'Confirm Password',
+                            labelText: '비밀번호 재확인',
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
@@ -132,7 +149,7 @@ class SignUpPage extends StatelessWidget {
                                 borderRadius: BorderRadius.circular(8), // 모서리 둥글게
                               ),
                             ),
-                            onPressed: () {
+                            onPressed: () async {
                               final id = idController.text.trim();
                               final email = emailController.text.trim();
                               final password = passwordController.text;
@@ -192,15 +209,40 @@ class SignUpPage extends StatelessWidget {
                                 return;
                               }
 
+                              // 파이어 스토어에 회원가입 아이디, 이메일, 비번 저장
+                              final service = FirestoreService();
 
-                              // 모든 조건이 만족되면 다음 페이지로 이동
+                              final errorMessage = await service.registerUser(
+                                userId: id,
+                                email: email,
+                                password: password,
+                              );
+
+                              if (errorMessage != null) {
+                                if (!context.mounted) return;
+                                showDialog(
+                                  context: context,
+                                  builder: (context) => AlertDialog(
+                                    title: const Text('회원가입 실패'),
+                                    content: Text(errorMessage),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () => Navigator.pop(context),
+                                        child: const Text('확인'),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                                return;
+                              }
+
+                              //회원가입 성공 -> 다음 화면 이동
+                              if (!context.mounted) return;
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(builder: (context) => Customerpage()),
                               );
                             },
-
-
                             child: Text(
                               '회원가입',
                               style: TextStyle(

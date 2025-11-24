@@ -10,17 +10,35 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  alarm: ^3.0.3
   flutter_localizations:
     sdk: flutter
+  flutter_local_notifications:
+    git:
+      url: https://github.com/MaikuB/flutter_local_notifications.git
+      path: flutter_local_notifications
+  timezone: ^0.10.1
+    
+  # The following adds the Cupertino Icons font to your application.
+  # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
+  firebase_core: ^2.27.0
+  firebase_auth: ^4.17.8
+  cloud_firestore: ^4.15.8
   vibration: ^3.1.4
-  firebase_core: ^3.0.0
   device_info_plus: ^9.0.3
+  permission_handler: ^11.0.1
 
 dev_dependencies:
+  flutter_launcher_icons: ^0.13.1
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
+
+flutter_icons:
+  android: true
+  ios: true
+  image_path: "assets/app_icon.png"
 
 flutter:
   uses-material-design: true

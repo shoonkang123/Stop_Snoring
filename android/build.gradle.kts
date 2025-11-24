@@ -1,3 +1,7 @@
+plugins {
+    // 🔽 Firebase Google Services 플러그인 등록 (버전은 Firebase 문서 기준, 예시는 4.4.2)
+    id("com.google.gms.google-services") version "4.4.2" apply false
+}
 allprojects {
     repositories {
         google()
