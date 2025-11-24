@@ -446,12 +446,12 @@ class _SleepPatternCardState extends State<SleepPatternCard> {
           ),
           const SizedBox(height: 12),
           _buildLabelValueRow(
-            label: '평균 자는 시간',
+            label: '평균 취침 시간',
             value: widget.avgBedTime,
           ),
           const SizedBox(height: 6),
           _buildLabelValueRow(
-            label: '평균 일어나는 시간',
+            label: '평균 기상 시간',
             value: widget.avgWakeTime,
           ),
           const SizedBox(height: 12),
